@@ -283,9 +283,9 @@ export class NewstackServer {
    *
    * @returns {Hono}
    */
-  start(app: Newstack, opts: { deps: Record<string, any> }): Hono {
+  start(app: Newstack, opts?: { deps: Record<string, any> }): Hono {
     this.app = app;
-    context.deps = opts.deps;
+    context.deps = opts?.deps ?? {};
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
 
