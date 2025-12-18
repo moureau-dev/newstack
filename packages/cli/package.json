@@ -1,5 +1,16 @@
 {
   "name": "@newstack/cli",
   "version": "0.0.1",
-  "license": "MIT"
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "newstack": "./bin/newstack.js"
+  },
+  "dependencies": {
+    "@newstack/framework": "workspace:^",
+    "@newstack/builder": "workspace:^",
+    "@newstack/jsx": "workspace:^",
+    "esbuild": "^0.25.5",
+    "@swc/core": "^1.15.2"
+  }
 }

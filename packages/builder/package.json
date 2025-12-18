@@ -3,5 +3,12 @@
   "private": true,
   "version": "0.0.1",
   "main": "./src/index.ts",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@swc/core": "^1.15.2",
+    "esbuild": "^0.25.5"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
 }

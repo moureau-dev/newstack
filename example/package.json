@@ -4,13 +4,15 @@
   "description": "An example package to demonstrate the use of framework",
   "type": "module",
   "scripts": {
-    "start": "node dist/server.js",
-    "build": "esbuild --bundle --platform=node --format=cjs --external:esbuild esbuild.config.ts | node",
-    "prestart": "npm run build"
+    "start": "newstack start",
+    "build": "newstack build",
+    "build:ssg": "newstack build && node dist/ssg.js",
+    "prestart": "newstack build"
+  },
+  "devDependencies": {
+    "@newstack/cli": "*"
   },
   "dependencies": {
-    "@newstack/framework": "*",
-    "esbuild": "^0.25.5",
     "socket.io-client": "^4.8.1"
   }
 }

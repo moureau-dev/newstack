@@ -1,7 +1,7 @@
 import type { Plugin } from "esbuild";
 import { readFile } from "fs/promises";
 import { Hasher } from "./hasher";
-import { ReplaceStaticMethods } from "./replace-static-methods";
+import { ReplaceStaticMethods } from "./static-methods";
 export { Hasher, ReplaceStaticMethods };
 export * from "./split-bundle";
 
@@ -17,7 +17,7 @@ export function NewstackPlugin(environment: "client" | "server"): Plugin {
   return {
     name: "newstack-plugin",
     setup(build) {
-      build.onLoad({ filter: /.[ts|js]x$/ }, async (args) => {
+      build.onLoad({ filter: /\.(tsx|ts|jsx|js)$/ }, async (args) => {
         let code = await readFile(args.path, "utf8");
 
         // Add a hash to classes extending Newstack
