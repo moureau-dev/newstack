@@ -2,7 +2,7 @@
 import { randomUUID } from "crypto";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { readFile } from "fs/promises";
+import { readFile, writeFile, mkdir, cp, access } from "fs/promises";
 
 /* ---------- External ---------- */
 import { serve } from "@hono/node-server";
@@ -279,6 +279,47 @@ export class NewstackServer {
 
   /**
    * @description
+   * Generates a static HTML template for SSG build mode.
+   * Unlike the regular template, this does not include client.js or state hydration,
+   * as the pages are fully static. Server functions are executed during build time.
+   *
+   * @returns {Promise<string>} - The HTML template as a string.
+   */
+  private async templateStatic(): Promise<string> {
+    this.renderer.visibleHashes.clear();
+    const element = this.app.render(context as NewstackClientContext);
+    this.renderer.html(element);
+    await this.prepare();
+    const page = this.renderer.html(element);
+
+    return `
+      <!DOCTYPE html>
+      <html lang="${context.page.locale || "en"}">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+            <title>${context.page.title}</title>
+            <meta name="og:title" content="${context.page.title}">
+
+            <meta name="description" content="${context.page.description || ""}">
+            <meta name="og:description" content="${context.page.description || ""}">
+
+            <style>
+      	      body { font-family: Arial, sans-serif; }
+            </style>
+        </head>
+
+        <body>
+          <div id="app">
+              ${page}
+          </div>
+        </body>
+      </html>`;
+  }
+
+  /**
+   * @description
    * Starts the Newstack server and listens for incoming requests.
    *
    * @returns {Hono}
@@ -294,6 +335,282 @@ export class NewstackServer {
     });
 
     return this.server;
+  }
+
+  /**
+   * @description
+   * Builds static site generation (SSG) output by crawling all routes and links.
+   * This method renders all discoverable pages to static HTML files.
+   *
+   * @param app The Newstack application instance to build.
+   * @param opts Optional configuration including:
+   *   - outDir: Output directory for static files
+   *   - deps: Dependencies to inject into context
+   *   - dynamicRoutes: Array of concrete paths for dynamic routes (e.g., ["/profile/1", "/profile/2"])
+   *   - getStaticPaths: Async function that returns paths for dynamic routes
+   *   - hydrate: If true, includes client.js for hydration/interactivity (default: true)
+   * @returns Promise that resolves when the build is complete.
+   */
+  async build(
+    app: Newstack,
+    opts?: {
+      outDir?: string;
+      deps?: Record<string, any>;
+      dynamicRoutes?: string[];
+      getStaticPaths?: () => Promise<string[]> | string[];
+      hydrate?: boolean;
+    }
+  ): Promise<void> {
+    this.app = app;
+    context.deps = opts?.deps ?? {};
+    this.renderer.setupAllComponents(this.app);
+
+    const outDir = opts?.outDir || "dist/public";
+    const shouldHydrate = opts?.hydrate ?? true;
+    const visitedPaths = new Set<string>();
+    const pathsToVisit: string[] = ["/"];
+
+    // Discover all routes from components first
+    const discoveredRoutes = this.discoverRoutes();
+    const dynamicRoutePatterns = discoveredRoutes.filter(r => r.includes(":"));
+
+    // Collect dynamic route paths from multiple sources
+    const dynamicRoutePaths = new Set<string>();
+
+    // Add manually specified routes (if they match a pattern)
+    for (const path of opts?.dynamicRoutes || []) {
+      if (dynamicRoutePatterns.some(pattern => this.matchesRoutePattern(path, pattern))) {
+        dynamicRoutePaths.add(path);
+      }
+    }
+
+    // Call getStaticPaths if provided (only add paths that match patterns)
+    if (opts?.getStaticPaths) {
+      const paths = await opts.getStaticPaths();
+      for (const path of paths) {
+        if (dynamicRoutePatterns.some(pattern => this.matchesRoutePattern(path, pattern))) {
+          dynamicRoutePaths.add(path);
+        }
+      }
+    }
+
+    // Add discovered routes to paths to visit
+    for (const route of discoveredRoutes) {
+      if (!route.includes(":")) {
+        // Only add static routes
+        pathsToVisit.push(route);
+      }
+    }
+
+    console.log("Starting SSG build...");
+    console.log("Discovered routes:", discoveredRoutes);
+
+    // Create output directory
+    await mkdir(outDir, { recursive: true });
+
+    // Crawl and render all paths
+    while (pathsToVisit.length > 0) {
+      const path = pathsToVisit.shift();
+      if (visitedPaths.has(path)) continue;
+
+      visitedPaths.add(path);
+      console.log(`Rendering: ${path}`);
+
+      // Set the path in context
+      context.path = path;
+      context.router.path = path;
+
+      // Generate HTML for this path (will execute server functions during render)
+      const html = shouldHydrate ? await this.template() : await this.templateStatic();
+
+      // Extract links from the HTML
+      const links = this.extractLinks(html);
+      for (const link of links) {
+        if (!visitedPaths.has(link) && !pathsToVisit.includes(link)) {
+          // Check if this link matches any defined route (static or dynamic)
+          const matchesStaticRoute = discoveredRoutes.some(r => !r.includes(":") && r === link);
+          const matchesDynamicRoute = dynamicRoutePatterns.some(pattern =>
+            this.matchesRoutePattern(link, pattern)
+          );
+
+          // Only add links that match defined routes
+          if (matchesStaticRoute || matchesDynamicRoute) {
+            if (matchesDynamicRoute) {
+              dynamicRoutePaths.add(link);
+            }
+            pathsToVisit.push(link);
+          }
+        }
+      }
+
+      // Write HTML file
+      const filePath = this.getFilePath(path, outDir);
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, html, "utf-8");
+    }
+
+    // Render any manually configured dynamic routes that weren't discovered
+    for (const dynamicPath of dynamicRoutePaths) {
+      if (visitedPaths.has(dynamicPath)) continue;
+
+      visitedPaths.add(dynamicPath);
+      console.log(`Rendering dynamic: ${dynamicPath}`);
+
+      context.path = dynamicPath;
+      context.router.path = dynamicPath;
+
+      const html = shouldHydrate ? await this.template() : await this.templateStatic();
+      const filePath = this.getFilePath(dynamicPath, outDir);
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, html, "utf-8");
+    }
+
+    // Copy client.js if hydration is enabled
+    if (shouldHydrate) {
+      const clientJsPath = join(outDir, "client.js");
+      await writeFile(clientJsPath, files.get("client"), "utf-8");
+      console.log("Copied client.js for hydration");
+    }
+
+    // Copy public directory if it exists
+    await this.copyPublicDirectory(outDir);
+
+    console.log("\nSSG build complete!");
+    console.log(`Generated ${visitedPaths.size} pages in ${outDir}`);
+    console.log("Pages:", Array.from(visitedPaths));
+  }
+
+  /**
+   * @description
+   * Copies the public directory to the SSG output directory.
+   * This includes all static assets like images, fonts, etc.
+   *
+   * @param outDir The output directory for SSG build.
+   */
+  private async copyPublicDirectory(outDir: string): Promise<void> {
+    // Look for public directory in the current working directory
+    const publicDir = resolve(process.cwd(), "public");
+
+    try {
+      await access(publicDir);
+      console.log("Copying public directory...");
+      await cp(publicDir, outDir, { recursive: true });
+      console.log("Public directory copied successfully");
+    } catch {
+      // Public directory doesn't exist, skip
+      console.log("No public directory found, skipping...");
+    }
+  }
+
+  /**
+   * @description
+   * Discovers all routes defined in the application components by traversing
+   * the component tree and collecting route props.
+   *
+   * @returns Array of route patterns found in the application.
+   */
+  private discoverRoutes(): string[] {
+    const routes: string[] = [];
+
+    const traverseVNode = (vnode: any) => {
+      if (!vnode || typeof vnode !== "object") return;
+
+      const { props } = vnode;
+      if (props?.route && props.route !== "*") {
+        routes.push(props.route);
+      }
+
+      if (Array.isArray(props?.children)) {
+        for (const child of props.children) {
+          traverseVNode(child);
+        }
+      } else if (props?.children) {
+        traverseVNode(props.children);
+      }
+    };
+
+    // Render the app to discover routes
+    const vnode = this.app.render(context as NewstackClientContext);
+    traverseVNode(vnode);
+
+    return routes;
+  }
+
+  /**
+   * @description
+   * Extracts all internal links (href attributes) from the rendered HTML.
+   *
+   * @param html The HTML string to extract links from.
+   * @returns Array of internal link paths.
+   */
+  private extractLinks(html: string): string[] {
+    const links: string[] = [];
+    const hrefRegex = /href=["']([^"']+)["']/g;
+
+    let match = hrefRegex.exec(html);
+    while (match !== null) {
+      const href = match[1];
+
+      // Only include internal links (starting with /)
+      if (href.startsWith("/") && !href.startsWith("//")) {
+        // Remove query params and hash
+        const cleanPath = href.split("?")[0].split("#")[0];
+        if (cleanPath && !cleanPath.includes(".")) {
+          links.push(cleanPath);
+        }
+      }
+
+      match = hrefRegex.exec(html);
+    }
+
+    return [...new Set(links)]; // Remove duplicates
+  }
+
+  /**
+   * @description
+   * Converts a URL path to a file system path for SSG output.
+   *
+   * @param path The URL path (e.g., "/about").
+   * @param outDir The output directory.
+   * @returns The file system path where the HTML should be written.
+   */
+  private getFilePath(path: string, outDir: string): string {
+    if (path === "/") {
+      return join(outDir, "index.html");
+    }
+
+    // Remove leading slash and add .html extension
+    const cleanPath = path.replace(/^\//, "");
+    return join(outDir, `${cleanPath}.html`);
+  }
+
+  /**
+   * @description
+   * Checks if a concrete path matches a route pattern with parameters.
+   * For example, "/profile/123" matches "/profile/:id"
+   *
+   * @param path The concrete path (e.g., "/profile/123")
+   * @param pattern The route pattern (e.g., "/profile/:id")
+   * @returns True if the path matches the pattern
+   */
+  private matchesRoutePattern(path: string, pattern: string): boolean {
+    const pathSegments = path.split("/").filter(Boolean);
+    const patternSegments = pattern.split("/").filter(Boolean);
+
+    if (pathSegments.length !== patternSegments.length) return false;
+
+    for (let i = 0; i < patternSegments.length; i++) {
+      const patternSegment = patternSegments[i];
+      const pathSegment = pathSegments[i];
+
+      // If pattern segment is a parameter, it matches any value
+      if (patternSegment.startsWith(":")) continue;
+
+      // Otherwise, segments must match exactly
+      if (patternSegment !== pathSegment) return false;
+    }
+
+    return true;
   }
 }
 
