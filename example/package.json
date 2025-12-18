@@ -10,7 +10,7 @@
     "prestart": "newstack build"
   },
   "devDependencies": {
-    "@newstack/cli": "*"
+    "newstack": "*"
   },
   "dependencies": {
     "socket.io-client": "^4.8.1"

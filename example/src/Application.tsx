@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack from "@newstack/cli";
+import Newstack from "newstack";
 
 /* ---------- Pages ---------- */
 import { Home } from "./Home";

@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack, { type NewstackClientContext } from "@newstack/cli";
+import Newstack, { type NewstackClientContext } from "newstack";
 
 /* ---------- Components ---------- */
 import { DynamicImport } from "./components/DynamicImport";

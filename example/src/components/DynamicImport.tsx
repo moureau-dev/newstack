@@ -1,4 +1,4 @@
-import Newstack from "@newstack/cli";
+import Newstack from "newstack";
 import type { Socket } from "socket.io-client";
 
 /**
