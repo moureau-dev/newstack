@@ -6,18 +6,29 @@ import { resolve } from "path";
 const args = process.argv.slice(2);
 const command = args[0];
 
+// Parse flags
+const flags = {};
+for (let i = 1; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith("--")) {
+    const [key, value] = arg.slice(2).split("=");
+    flags[key] = value || true;
+  }
+}
+
 if (!command) {
-  console.log("Usage: newstack <command>");
+  console.log("Usage: newstack <command> [options]");
   console.log("");
   console.log("Commands:");
   console.log("  build    Build server and client bundles");
-  console.log("  start    Start the production server");
-  console.log("  dev      Start development server (coming soon)");
+  console.log("  start    Start development server");
+  console.log("");
   process.exit(1);
 }
 
 switch (command) {
   case "build": {
+    // SSG build mode
     const configPath = resolve(process.cwd(), "esbuild.config.ts");
 
     const esbuildArgs = [
@@ -54,7 +65,6 @@ switch (command) {
     node.on("close", (code) => {
       process.exit(code || 0);
     });
-
     break;
   }
 

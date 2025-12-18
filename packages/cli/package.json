@@ -6,6 +6,7 @@
   "bin": {
     "newstack": "./bin/newstack.js"
   },
+  "main": "./src/index.ts",
   "dependencies": {
     "@newstack/framework": "workspace:^",
     "@newstack/builder": "workspace:^",

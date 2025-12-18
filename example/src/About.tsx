@@ -1,5 +1,17 @@
 /* ---------- Internal ---------- */
-import Newstack, { type NewstackClientContext } from "@newstack/framework";
+import Newstack, { type NewstackClientContext } from "@newstack/cli";
+
+class ServerFunctions extends Newstack {
+  /**
+   * @description
+   * Example server function that can be called from the client.
+   * This method in the client-side will be replaced by a fetch call to the server
+   * during the build process, while the server will execute this function directly.
+   */
+  static async NiceServerFunction(ctx) {
+    return { message: `Hello from the server, ${ctx.name}!` };
+  }
+}
 
 /**
  * @description
@@ -7,18 +19,8 @@ import Newstack, { type NewstackClientContext } from "@newstack/framework";
  * It provides information about Newstack and includes a server function demonstration.
  * The page allows users to call a server function and display the response.
  */
-export class About extends Newstack {
+export class About extends ServerFunctions {
   msg: string;
-
-  /**
-   * @description
-   * Example server function that can be called from the client.
-   * This method in the client-side will be replaced by a fetch call to the server
-   * during the build process, while the server will execute this function directly.
-   */
-  static async NiceServerFunction({ name }) {
-    return `Hello from the server, ${name}!`;
-  }
 
   prepare({ page }: NewstackClientContext) {
     page.title = "About Newstack";
@@ -26,7 +28,7 @@ export class About extends Newstack {
   }
 
   async callServerFunction() {
-    const message = await About.NiceServerFunction({
+    const { message } = await ServerFunctions.NiceServerFunction({
       name: "Newstack User",
     });
 

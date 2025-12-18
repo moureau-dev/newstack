@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack, { type NewstackClientContext } from "@newstack/framework";
+import Newstack, { type NewstackClientContext } from "@newstack/cli";
 
 /* ---------- Components ---------- */
 import { DynamicImport } from "./components/DynamicImport";
@@ -38,6 +38,7 @@ export class Home extends Newstack {
         <SayHelloAppender />
 
         <a href="/about">About</a>
+        <a href="/profile/123">Profile 123</a>
 
         <button
           type="button"

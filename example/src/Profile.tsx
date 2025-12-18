@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack, { type NewstackClientContext } from "@newstack/framework";
+import Newstack, { type NewstackClientContext } from "@newstack/cli";
 
 /**
  * @description

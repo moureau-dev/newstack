@@ -1,4 +1,4 @@
-import Newstack from "@newstack/framework";
+import Newstack from "@newstack/cli";
 
 /**
  * @description

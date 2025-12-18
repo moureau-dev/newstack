@@ -16,6 +16,17 @@ async function build() {
   await server.rebuild();
   await server.dispose();
 
+  // console.log("Building SSG script...");
+  // const ssg = await context({
+  //   ...builder.server,
+  //   entryPoints: ["ssg.ts"],
+  //   minify: production,
+  //   external: ["esbuild", "@newstack/builder"],
+  // });
+
+  // await ssg.rebuild();
+  // await ssg.dispose();
+
   console.log("Building client...");
   const client = await context({
     ...builder.client,

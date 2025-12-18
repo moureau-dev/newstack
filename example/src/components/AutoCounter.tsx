@@ -1,4 +1,4 @@
-import Newstack from "@newstack/framework";
+import Newstack from "@newstack/cli";
 
 /**
  * @description
@@ -8,7 +8,7 @@ import Newstack from "@newstack/framework";
  */
 export class AutoCounter extends Newstack {
   count = 0;
-  interval: number;
+  interval: NodeJS.Timeout;
 
   async hydrate() {
     this.count = 0;
