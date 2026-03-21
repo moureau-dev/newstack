@@ -11,7 +11,7 @@ import { SplitBundle, NewstackPlugin } from "./plugins";
  */
 export const server: BuildOptions = {
   bundle: true,
-  entryPoints: ["server.ts"],
+  entryNames: "server.[js|ts]",
   outdir: "dist",
   plugins: [NewstackPlugin("server")],
   platform: "node",
@@ -29,7 +29,7 @@ export const server: BuildOptions = {
  */
 export const client: BuildOptions = {
   bundle: true,
-  entryPoints: ["client.ts"],
+  entryNames: "client.[js|ts]",
   chunkNames: "client-[name]-[hash]",
   outdir: "dist",
   plugins: [SplitBundle(), NewstackPlugin("client")],
