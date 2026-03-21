@@ -5,6 +5,7 @@ import { SplitBundle, NewstackPlugin } from "./plugins";
 
 const serverEntry = existsSync("server.ts") ? "server.ts" : "server.js";
 const clientEntry = existsSync("client.ts") ? "client.ts" : "client.js";
+const cssEntry = existsSync("src/styles.css") ? "src/styles.css" : null;
 
 /**
  * @description
@@ -33,7 +34,8 @@ export const server: BuildOptions = {
  */
 export const client: BuildOptions = {
   bundle: true,
-  entryPoints: [clientEntry],
+  entryPoints: [clientEntry, cssEntry].filter(Boolean),
+  entryNames: "client",
   chunkNames: "client-[name]-[hash]",
   outdir: "dist",
   plugins: [SplitBundle(), NewstackPlugin("client")],

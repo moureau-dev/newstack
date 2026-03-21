@@ -53,10 +53,15 @@ const context = proxifyContext({
 }) as NewstackServerContext & NewstackClientContext;
 
 const loaders = {
-  client: async () => {
+  "client.js": async () => {
     const file = resolve(__dirname, "client.js");
     const content = await readFile(file, "utf-8");
     files.set("client.js", content);
+  },
+  "client.css": async () => {
+    const file = resolve(__dirname, "client.css");
+    const content = await readFile(file, "utf-8");
+    files.set("client.css", content);
   },
 };
 
@@ -186,13 +191,22 @@ export class NewstackServer {
         });
       })
       .get("/client.js", async (c) => {
-        await loaders.client();
+        await loaders["client.js"]();
 
         c.header("Content-Type", "application/javascript");
         c.header("Cache-Control", "public, max-age=87600, immutable");
         c.header("X-Newstack-Fingerprint", hash);
 
         return c.body(files.get("client.js"));
+      })
+      .get("/client.css", async (c) => {
+        await loaders["client.css"]();
+
+        c.header("Content-Type", "text/css");
+        c.header("Cache-Control", "public, max-age=87600, immutable");
+        c.header("X-Newstack-Fingerprint", hash);
+
+        return c.body(files.get("client.css"));
       });
   }
 
@@ -266,6 +280,7 @@ export class NewstackServer {
             </style>
 
       	    <script type="module" src="/client.js?fingerprint=${hash}"></script>
+            <link rel="stylesheet" href="/client.css?fingerprint=${hash}"></link>
             <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
         </head>
 
@@ -481,11 +496,18 @@ export class NewstackServer {
       await writeFile(filePath, html, "utf-8");
     }
 
-    // Copy client.js if hydration is enabled
+    // Copy client.js and client.css if hydration is enabled
     if (shouldHydrate) {
       const clientJsPath = join(outDir, "client.js");
       await writeFile(clientJsPath, files.get("client.js"), "utf-8");
       console.log("Copied client.js for hydration");
+
+      // Copy client.css if it exists
+      if (files.has("client.css")) {
+        const clientCssPath = join(outDir, "client.css");
+        await writeFile(clientCssPath, files.get("client.css"), "utf-8");
+        console.log("Copied client.css for styling");
+      }
     }
 
     // Copy public directory if it exists
@@ -631,7 +653,7 @@ export class NewstackServer {
 }
 
 /* ---------- Types ---------- */
-type PublicFile = "client.js";
+type PublicFile = "client.js" | "client.css";
 
 type ServerFunctionResponse = {
   /**
