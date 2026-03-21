@@ -8,9 +8,12 @@ import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const projectName = process.argv[2] || "my-newstack-app";
+const args = process.argv.slice(2);
+const projectName = args.find((a) => !a.startsWith("-")) || "my-newstack-app";
+const withTailwind = args.includes("--tailwind") || args.includes("-tw");
 
 console.log(`Creating a new Newstack app in ./${projectName}...`);
+if (withTailwind) console.log("Including Tailwind CSS...");
 
 async function createApp() {
   const projectPath = join(process.cwd(), projectName);
@@ -33,6 +36,10 @@ async function createApp() {
       newstack: "^0.0.1",
       esbuild: "^0.25.5",
       "@swc/core": "^1.15.2",
+      ...(withTailwind && {
+        tailwindcss: "^4",
+        "esbuild-plugin-tailwindcss": "^2",
+      }),
     },
   };
 
@@ -138,7 +145,7 @@ new NewstackClient().start(app);
   const esbuildConfig = `/* ---------- External ---------- */
 import { context } from "newstack/esbuild";
 import { builder } from "newstack/builder";
-
+${withTailwind ? `import tailwindPlugin from "esbuild-plugin-tailwindcss";\n` : ""}
 const production = false;
 
 async function build() {
@@ -158,7 +165,7 @@ async function build() {
     ...builder.client,
     ignoreAnnotations: production,
     legalComments: production ? "none" : "external",
-    minify: production,
+    minify: production,${withTailwind ? "\n    plugins: [...(builder.client.plugins ?? []), tailwindPlugin()]," : ""}
   });
   await client.rebuild();
   await client.dispose();
@@ -226,7 +233,7 @@ export class Home extends Newstack {
   await writeFile(join(projectPath, "src", "Home.tsx"), homeTsx);
 
   // Create src/styles.css
-  const stylesCss = `body {
+  const stylesCss = `${withTailwind ? `@import "tailwindcss";\n\n` : ""}body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
