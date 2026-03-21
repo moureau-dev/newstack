@@ -56,11 +56,9 @@ const loaders = {
   client: async () => {
     const file = resolve(__dirname, "client.js");
     const content = await readFile(file, "utf-8");
-    files.set("client", content);
+    files.set("client.js", content);
   },
 };
-
-loaders.client();
 
 /* ---------- Server ---------- */
 /**
@@ -187,12 +185,14 @@ export class NewstackServer {
           error: response.error,
         });
       })
-      .get("/client.js", (c) => {
+      .get("/client.js", async (c) => {
+        await loaders.client();
+
         c.header("Content-Type", "application/javascript");
         c.header("Cache-Control", "public, max-age=87600, immutable");
         c.header("X-Newstack-Fingerprint", hash);
 
-        return c.body(files.get("client"));
+        return c.body(files.get("client.js"));
       });
   }
 
@@ -359,7 +359,7 @@ export class NewstackServer {
       dynamicRoutes?: string[];
       getStaticPaths?: () => Promise<string[]> | string[];
       hydrate?: boolean;
-    }
+    },
   ): Promise<void> {
     this.app = app;
     context.deps = opts?.deps ?? {};
@@ -372,14 +372,20 @@ export class NewstackServer {
 
     // Discover all routes from components first
     const discoveredRoutes = this.discoverRoutes();
-    const dynamicRoutePatterns = discoveredRoutes.filter(r => r.includes(":"));
+    const dynamicRoutePatterns = discoveredRoutes.filter((r) =>
+      r.includes(":"),
+    );
 
     // Collect dynamic route paths from multiple sources
     const dynamicRoutePaths = new Set<string>();
 
     // Add manually specified routes (if they match a pattern)
     for (const path of opts?.dynamicRoutes || []) {
-      if (dynamicRoutePatterns.some(pattern => this.matchesRoutePattern(path, pattern))) {
+      if (
+        dynamicRoutePatterns.some((pattern) =>
+          this.matchesRoutePattern(path, pattern),
+        )
+      ) {
         dynamicRoutePaths.add(path);
       }
     }
@@ -388,7 +394,11 @@ export class NewstackServer {
     if (opts?.getStaticPaths) {
       const paths = await opts.getStaticPaths();
       for (const path of paths) {
-        if (dynamicRoutePatterns.some(pattern => this.matchesRoutePattern(path, pattern))) {
+        if (
+          dynamicRoutePatterns.some((pattern) =>
+            this.matchesRoutePattern(path, pattern),
+          )
+        ) {
           dynamicRoutePaths.add(path);
         }
       }
@@ -421,16 +431,20 @@ export class NewstackServer {
       context.router.path = path;
 
       // Generate HTML for this path (will execute server functions during render)
-      const html = shouldHydrate ? await this.template() : await this.templateStatic();
+      const html = shouldHydrate
+        ? await this.template()
+        : await this.templateStatic();
 
       // Extract links from the HTML
       const links = this.extractLinks(html);
       for (const link of links) {
         if (!visitedPaths.has(link) && !pathsToVisit.includes(link)) {
           // Check if this link matches any defined route (static or dynamic)
-          const matchesStaticRoute = discoveredRoutes.some(r => !r.includes(":") && r === link);
-          const matchesDynamicRoute = dynamicRoutePatterns.some(pattern =>
-            this.matchesRoutePattern(link, pattern)
+          const matchesStaticRoute = discoveredRoutes.some(
+            (r) => !r.includes(":") && r === link,
+          );
+          const matchesDynamicRoute = dynamicRoutePatterns.some((pattern) =>
+            this.matchesRoutePattern(link, pattern),
           );
 
           // Only add links that match defined routes
@@ -459,7 +473,9 @@ export class NewstackServer {
       context.path = dynamicPath;
       context.router.path = dynamicPath;
 
-      const html = shouldHydrate ? await this.template() : await this.templateStatic();
+      const html = shouldHydrate
+        ? await this.template()
+        : await this.templateStatic();
       const filePath = this.getFilePath(dynamicPath, outDir);
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, html, "utf-8");
@@ -468,7 +484,7 @@ export class NewstackServer {
     // Copy client.js if hydration is enabled
     if (shouldHydrate) {
       const clientJsPath = join(outDir, "client.js");
-      await writeFile(clientJsPath, files.get("client"), "utf-8");
+      await writeFile(clientJsPath, files.get("client.js"), "utf-8");
       console.log("Copied client.js for hydration");
     }
 
@@ -615,7 +631,7 @@ export class NewstackServer {
 }
 
 /* ---------- Types ---------- */
-type PublicFile = "client";
+type PublicFile = "client.js";
 
 type ServerFunctionResponse = {
   /**

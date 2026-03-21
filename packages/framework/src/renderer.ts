@@ -120,13 +120,18 @@ export class Renderer {
         }
       }
 
-      this.visibleHashes.add(hash);
-
       const isRenderable = isRenderableComponent(component);
 
       if (isRenderable) {
         const vnode = component.render?.(this.context);
+
+        // Only add to visibleHashes if component will actually render (not as comment)
+        this.visibleHashes.add(hash);
+
         if (this.context.environment === "client") {
+          if (!vnode.props) {
+            vnode.props = {};
+          }
           vnode.props["data-newstack"] = hash;
         }
 
