@@ -1,5 +1,6 @@
 /* ---------- Internal ---------- */
 import Newstack from "newstack";
+import "./styles.css";
 
 /* ---------- Pages ---------- */
 import { Home } from "./Home";

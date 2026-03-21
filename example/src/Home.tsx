@@ -27,7 +27,7 @@ export class Home extends Newstack {
       <div>
         <h1>Welcome to Newstack! </h1>
 
-        <p>This is a simple example of a Newstack application.</p>
+        <p class="hello">This is a simple example of a Newstack application.</p>
 
         <DynamicImport />
         <AutoCounter />
