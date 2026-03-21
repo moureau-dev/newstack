@@ -2,7 +2,8 @@ import type { Plugin } from "esbuild";
 import { readFile } from "fs/promises";
 import { Hasher } from "./hasher";
 import { ReplaceStaticMethods } from "./static-methods";
-export { Hasher, ReplaceStaticMethods };
+import { IgnoreCss } from "./ignore-css";
+export { Hasher, ReplaceStaticMethods, IgnoreCss };
 export * from "./split-bundle";
 
 /**
@@ -17,6 +18,11 @@ export function NewstackPlugin(environment: "client" | "server"): Plugin {
   return {
     name: "newstack-plugin",
     setup(build) {
+      // Ignore CSS imports in server build
+      if (environment === "server") {
+        IgnoreCss(build);
+      }
+
       build.onLoad({ filter: /\.(tsx|ts|jsx|js)$/ }, async (args) => {
         let code = await readFile(args.path, "utf8");
 
