@@ -34,9 +34,9 @@ switch (command) {
     const esbuildArgs = [
       "--bundle",
       "--platform=node",
-      "--format=cjs",
+      "--format=esm",
       "--external:esbuild",
-      "--external:@swc/*",
+      "--external:@swc/core",
       configPath,
     ];
 
@@ -70,7 +70,7 @@ switch (command) {
 
   case "start": {
     const serverPath = resolve(process.cwd(), "dist/server.js");
-    const node = spawn("node", [serverPath], {
+    const node = spawn("bun", [serverPath], {
       stdio: "inherit",
       cwd: process.cwd(),
     });
