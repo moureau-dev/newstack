@@ -1,7 +1,5 @@
 # Newstack
 
-Another toy-project: 
-
 A framework **extremely** similar to [Nullstack](https://nullstack.app/), but using different techs:
 
 - [Hono](https://hono.dev/) for the server
