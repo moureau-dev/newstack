@@ -218,12 +218,12 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
   if (replacements.length > 0) {
     // Check if @newstack/framework is already imported
     const frameworkImportRegex =
-      /import\s+([^;]+)\s+from\s+["']@newstack\/framework["'];?/;
+      /import\s+([^;]+)\s+from\s+["'](newstack|@newstack\/framework)["'];?/;
     const hasFrameworkImport = frameworkImportRegex.test(result);
 
     if (!hasFrameworkImport) {
       // No existing import, add a new one
-      result = `import { runtime } from "@newstack/framework";\n${result}`;
+      result = `import { runtime } from "newstack";\n${result}`;
     } else {
       // Add runtime to existing import if not already there
       result = result.replace(
@@ -232,9 +232,9 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
           if (match.includes("runtime")) return match;
 
           // Handle different import formats:
-          // import Newstack from "@newstack/framework"
-          // import { Foo } from "@newstack/framework"
-          // import Newstack, { Foo } from "@newstack/framework"
+          // import Newstack from "newstack"
+          // import { Foo } from "newstack"
+          // import Newstack, { Foo } from "newstack"
 
           if (importStatement.includes("{")) {
             // Has destructured imports
