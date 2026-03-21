@@ -28,56 +28,14 @@ if (!command) {
 
 switch (command) {
   case "build": {
-    // SSG build mode
-    const configPath = resolve(process.cwd(), "esbuild.config.ts");
+    build();
 
-    const esbuildArgs = [
-      "--bundle",
-      "--platform=node",
-      "--format=esm",
-      "--external:esbuild",
-      "--external:@swc/core",
-      configPath,
-    ];
-
-    const esbuild = spawn("esbuild", esbuildArgs, {
-      stdio: ["inherit", "pipe", "inherit"],
-      cwd: process.cwd(),
-    });
-
-    const node = spawn("node", [], {
-      stdio: ["pipe", "inherit", "inherit"],
-      cwd: process.cwd(),
-    });
-
-    esbuild.stdout.pipe(node.stdin);
-
-    esbuild.on("error", (err) => {
-      console.error("Failed to start esbuild:", err);
-      process.exit(1);
-    });
-
-    node.on("error", (err) => {
-      console.error("Failed to start node:", err);
-      process.exit(1);
-    });
-
-    node.on("close", (code) => {
-      process.exit(code || 0);
-    });
     break;
   }
 
   case "start": {
-    const serverPath = resolve(process.cwd(), "dist/server.js");
-    const node = spawn("node", [serverPath], {
-      stdio: "inherit",
-      cwd: process.cwd(),
-    });
-
-    node.on("close", (code) => {
-      process.exit(code || 0);
-    });
+    build();
+    run();
 
     break;
   }
@@ -85,4 +43,55 @@ switch (command) {
   default:
     console.error(`Unknown command: ${command}`);
     process.exit(1);
+}
+
+function build() {
+  const configPath = resolve(process.cwd(), "esbuild.config.ts");
+
+  const esbuildArgs = [
+    "--bundle",
+    "--platform=node",
+    "--format=esm",
+    "--external:esbuild",
+    "--external:@swc/core",
+    configPath,
+  ];
+
+  const esbuild = spawn("esbuild", esbuildArgs, {
+    stdio: ["inherit", "pipe", "inherit"],
+    cwd: process.cwd(),
+  });
+
+  const node = spawn("node", [], {
+    stdio: ["pipe", "inherit", "inherit"],
+    cwd: process.cwd(),
+  });
+
+  esbuild.stdout.pipe(node.stdin);
+
+  esbuild.on("error", (err) => {
+    console.error("Failed to start esbuild:", err);
+    process.exit(1);
+  });
+
+  node.on("error", (err) => {
+    console.error("Failed to start node:", err);
+    process.exit(1);
+  });
+
+  node.on("close", (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function run() {
+  const serverPath = resolve(process.cwd(), "dist/server.js");
+  const node = spawn("node", [serverPath], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+  });
+
+  node.on("close", (code) => {
+    process.exit(code || 0);
+  });
 }
