@@ -175,43 +175,53 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
     }
   }
 
-  // Replace methods with runtime.invoke calls using regex
-  // We use a simple regex that matches the method name specifically
+  // Replace methods using regex search for each method name
+  // Process in reverse order so positions remain valid
+  replacements.sort((a, b) => b.start - a.start);
+
   let result = code;
+
   for (const r of replacements) {
     let paramsDecl: string;
     let paramsPass: string;
 
     if (r.params.length === 0) {
-      // No parameters - empty context object
       paramsDecl = "";
       paramsPass = "undefined";
     } else if (r.isDestructured) {
-      // Destructured object parameter: { name, age } -> pass as reconstructed object
       paramsDecl = `{ ${r.params.join(", ")} }`;
       paramsPass = `{ ${r.params.join(", ")} }`;
     } else {
-      // Single parameter (the context object): ctx -> pass directly
       paramsDecl = r.params[0];
       paramsPass = r.params[0];
     }
 
     const newMethod = `static ${r.methodName} = (${paramsDecl}) => runtime.invoke("${r.methodName}", this.hash, ${paramsPass})`;
 
-    // Use regex to find and replace the entire static async method
-    // This pattern matches: static async methodName(...) { ... }
-    // We use [\s\S]*? to match any character including newlines (non-greedy)
-    // and match up to a closing brace on its own line
-    const escapedMethodName = r.methodName.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&",
-    );
-    const methodRegex = new RegExp(
-      `\\s*static\\s+async\\s+${escapedMethodName}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\s*\\}`,
-      "g",
-    );
+    // Use regex to find the full "static async methodName" declaration
+    // and replace it with the new arrow function
+    const escapedMethodName = r.methodName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    result = result.replace(methodRegex, `\n  ${newMethod}`);
+    // Match from "static async methodName" through the end (using AST end position as guide)
+    // Look for the pattern around the AST start position
+    const searchStart = Math.max(0, r.start - 20);
+    const searchEnd = r.end + 10;
+    const searchRegion = result.substring(searchStart, searchEnd);
+
+    const methodPattern = new RegExp(
+      `(\\s*)static\\s+async\\s+${escapedMethodName}\\s*\\([^)]*\\)\\s*\\{`,
+    );
+    const match = searchRegion.match(methodPattern);
+
+    if (match) {
+      const matchStart = searchStart + match.index + match[1].length; // Preserve leading whitespace
+      const actualStart = matchStart;
+      const actualEnd = r.end;
+
+      const before = result.substring(0, actualStart);
+      const after = result.substring(actualEnd);
+      result = before + newMethod + after;
+    }
   }
 
   // Add runtime import AFTER replacements (so AST positions stay valid)
