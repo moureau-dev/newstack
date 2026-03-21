@@ -70,7 +70,7 @@ switch (command) {
 
   case "start": {
     const serverPath = resolve(process.cwd(), "dist/server.js");
-    const node = spawn("bun", [serverPath], {
+    const node = spawn("node", [serverPath], {
       stdio: "inherit",
       cwd: process.cwd(),
     });
