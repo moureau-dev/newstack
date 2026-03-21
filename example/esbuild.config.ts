@@ -1,5 +1,5 @@
-import { context } from "esbuild";
-import { builder } from "@newstack/builder";
+import { context } from "newstack/esbuild";
+import { builder } from "newstack/builder";
 
 const production = false;
 
@@ -10,22 +10,10 @@ async function build() {
   const server = await context({
     ...builder.server,
     minify: production,
-    external: ["esbuild", "@newstack/builder"],
   });
 
   await server.rebuild();
   await server.dispose();
-
-  // console.log("Building SSG script...");
-  // const ssg = await context({
-  //   ...builder.server,
-  //   entryPoints: ["ssg.ts"],
-  //   minify: production,
-  //   external: ["esbuild", "@newstack/builder"],
-  // });
-
-  // await ssg.rebuild();
-  // await ssg.dispose();
 
   console.log("Building client...");
   const client = await context({
@@ -33,7 +21,6 @@ async function build() {
     ignoreAnnotations: production,
     legalComments: production ? "none" : "external",
     minify: production,
-    external: ["esbuild", "@newstack/builder"],
   });
   await client.rebuild();
   await client.dispose();
