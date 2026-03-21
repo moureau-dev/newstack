@@ -6,12 +6,15 @@
   "bin": {
     "newstack": "./bin/newstack.js"
   },
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server.ts",
-    "./builder": "./src/builder.ts",
-    "./esbuild": "./src/esbuild.ts"
+    ".": "./dist/index.js",
+    "./server": "./dist/server.js",
+    "./builder": "./dist/builder.js",
+    "./esbuild": "./dist/esbuild.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts src/server.ts src/builder.ts src/esbuild.ts --bundle --platform=node --format=esm --external:esbuild --external:@swc/core --outdir=dist --minify"
   },
   "dependencies": {
     "@newstack/framework": "workspace:^",
