@@ -16,7 +16,7 @@ export const server: BuildOptions = {
   plugins: [NewstackPlugin("server")],
   platform: "node",
   format: "esm",
-  target: "node12",
+  target: "es2020",
   jsxFactory: "h",
   inject: ["@newstack/jsx"],
 };

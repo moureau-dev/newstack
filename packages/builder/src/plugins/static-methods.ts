@@ -34,7 +34,7 @@ const baseClassName = "Newstack";
  * @param code Source code to transform
  * @returns Transformed code with runtime.invoke calls
  */
-export function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
+export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
   const ast = parseSync(code, {
     syntax: "typescript",
     tsx: true,
@@ -202,10 +202,13 @@ export function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
     // This pattern matches: static async methodName(...) { ... }
     // We use [\s\S]*? to match any character including newlines (non-greedy)
     // and match up to a closing brace on its own line
-    const escapedMethodName = r.methodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedMethodName = r.methodName.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
     const methodRegex = new RegExp(
       `\\s*static\\s+async\\s+${escapedMethodName}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\s*\\}`,
-      'g'
+      "g",
     );
 
     result = result.replace(methodRegex, `\n  ${newMethod}`);

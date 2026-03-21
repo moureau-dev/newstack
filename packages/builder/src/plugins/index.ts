@@ -23,9 +23,9 @@ export function NewstackPlugin(environment: "client" | "server"): Plugin {
         // Add a hash to classes extending Newstack
         code = Hasher(args, code);
 
-        if (environment === "client") {
+        if (environment === "client" && code.includes("static async")) {
           // Replace static methods with fetch calls in the client
-          code = ReplaceStaticMethods(args, code);
+          code = await ReplaceStaticMethods(args, code);
         }
 
         return {
