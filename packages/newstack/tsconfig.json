@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "lib": ["es2019", "DOM"],
+    "types": ["node"],
+    "strict": false,
+    "noImplicitAny": false,
+    "jsx": "preserve",
+    "skipLibCheck": true,
+    "downlevelIteration": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@newstack/framework": ["../../packages/framework/src/index.ts"],
+      "@newstack/framework/*": ["../../packages/framework/src/*.ts"],
+      "@newstack/builder": ["../../packages/builder/src/index.ts"],
+      "@newstack/jsx": ["../../packages/jsx/src/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

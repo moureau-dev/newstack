@@ -23,6 +23,7 @@ export const server: BuildOptions = {
   target: "es2020",
   jsxFactory: "h",
   inject: ["@newstack/jsx"],
+  conditions: ["source"],
 };
 
 /**
@@ -43,4 +44,5 @@ export const client: BuildOptions = {
   format: "esm",
   jsxFactory: "h",
   inject: ["@newstack/jsx"],
+  conditions: ["source"],
 };

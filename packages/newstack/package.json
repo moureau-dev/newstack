@@ -6,25 +6,33 @@
   "bin": {
     "newstack": "./bin/newstack.js"
   },
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server.ts",
-    "./builder": "./src/builder.ts",
-    "./esbuild": "./src/esbuild.ts"
+    ".": { "types": "./src/index.ts", "source": "./src/index.ts", "default": "./dist/index.js" },
+    "./server": { "types": "./src/server.ts", "source": "./src/server.ts", "default": "./dist/server.js" },
+    "./builder": { "types": "./src/builder.ts", "source": "./src/builder.ts", "default": "./dist/builder.js" },
+    "./esbuild": { "types": "./src/esbuild.ts", "source": "./src/esbuild.ts", "default": "./dist/esbuild.js" }
   },
   "publishConfig": {
     "main": "./dist/index.js",
     "exports": {
-      ".": "./dist/index.js",
-      "./server": "./dist/server.js",
-      "./builder": "./dist/builder.js",
-      "./esbuild": "./dist/esbuild.js"
+      ".": { "types": "./dist/index.d.ts", "source": "./dist/index.js", "default": "./dist/index.js" },
+      "./server": { "types": "./dist/server.d.ts", "source": "./dist/server.js", "default": "./dist/server.js" },
+      "./builder": { "types": "./dist/builder.d.ts", "source": "./dist/builder.js", "default": "./dist/builder.js" },
+      "./esbuild": { "types": "./dist/esbuild.d.ts", "source": "./dist/esbuild.js", "default": "./dist/esbuild.js" }
     }
   },
   "scripts": {
-    "build": "esbuild src/index.ts src/server.ts src/builder.ts src/esbuild.ts --bundle --platform=node --format=esm --external:esbuild --external:@swc/core --outdir=dist --minify",
+    "build:js": "esbuild src/index.ts src/server.ts src/builder.ts src/esbuild.ts --bundle --platform=node --format=esm --external:esbuild --external:@swc/core --outdir=dist --minify --splitting",
+    "build:types": "concurrently \"dts-bundle-generator --project tsconfig.json --no-check -o dist/index.d.ts src/index.ts\" \"dts-bundle-generator --project tsconfig.json --no-check -o dist/server.d.ts src/server.ts\" \"dts-bundle-generator --project tsconfig.json --no-check -o dist/builder.d.ts src/builder.ts\" \"dts-bundle-generator --project tsconfig.json --no-check -o dist/esbuild.d.ts src/esbuild.ts\"",
+    "build": "concurrently \"npm run build:js\" \"npm run build:types\"",
     "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "concurrently": "^9",
+    "dts-bundle-generator": "^9",
+    "typescript": "^5"
   },
   "dependencies": {
     "@newstack/framework": "workspace:^",

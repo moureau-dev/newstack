@@ -55,8 +55,7 @@ function build(onComplete) {
     "--bundle",
     "--platform=node",
     "--format=esm",
-    "--external:esbuild",
-    "--external:@swc/core",
+    "--packages=external",
     configPath,
   ];
 

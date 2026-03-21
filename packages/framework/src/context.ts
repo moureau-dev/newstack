@@ -4,7 +4,7 @@ import type { NewstackClientContext, NewstackServerContext } from "./core";
 export function proxifyContext(
   ctx: Partial<NewstackClientContext & NewstackServerContext>,
   client?: NewstackClient,
-) {
+): Partial<NewstackClientContext & NewstackServerContext> {
   const page = new Proxy(ctx.page, {
     get(target, prop) {
       return Reflect.get(target, prop);
