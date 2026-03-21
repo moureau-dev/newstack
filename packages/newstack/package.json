@@ -10,7 +10,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
-    "./builder": "./src/builder.ts"
+    "./builder": "./src/builder.ts",
+    "./esbuild": "./src/esbuild.ts"
   },
   "dependencies": {
     "@newstack/framework": "workspace:^",

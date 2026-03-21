@@ -1,18 +1,14 @@
 {
-  "name": "newstack",
+  "name": "@newstack/monorepo",
   "version": "0.0.1",
   "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
-    "benchmark": "clear && npm run start --workspace @newstack/benchmark",
-    "example": "clear && npm run start --workspace @newstack/example",
+    "example": "cd example && npm start",
     "fmt": "biome format --write {./packages/**/src,./example/**}"
   },
-  "workspaces": [
-    "packages/*",
-    "example"
-  ],
+  "workspaces": ["packages/*", "example"],
   "devDependencies": {
     "@biomejs/biome": "1.9.4"
   }
