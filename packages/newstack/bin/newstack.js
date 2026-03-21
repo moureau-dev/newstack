@@ -20,23 +20,23 @@ if (!command) {
   console.log("Usage: newstack <command> [options]");
   console.log("");
   console.log("Commands:");
-  console.log("  build    Build server and client bundles");
-  console.log("  start    Start development server");
+  console.log("  build             Build server and client bundles");
+  console.log("  build --mode=ssg  Build and generate static HTML pages");
+  console.log("  start             Start development server");
   console.log("");
   process.exit(1);
 }
 
 switch (command) {
   case "build": {
-    build();
-
+    const mode = flags.mode || "ssr";
+    const onComplete = mode === "ssg" ? runSsg : null;
+    build(onComplete);
     break;
   }
 
   case "start": {
-    build();
-    run();
-
+    build(run);
     break;
   }
 
@@ -45,7 +45,7 @@ switch (command) {
     process.exit(1);
 }
 
-function build() {
+function build(onComplete) {
   const configPath = resolve(process.cwd(), "esbuild.config.ts");
 
   const esbuildArgs = [
@@ -80,7 +80,9 @@ function build() {
   });
 
   node.on("close", (code) => {
-    process.exit(code || 0);
+    if (code !== 0) process.exit(code);
+    if (onComplete) onComplete();
+    else process.exit(0);
   });
 }
 
@@ -89,6 +91,19 @@ function run() {
   const node = spawn("node", [serverPath], {
     stdio: "inherit",
     cwd: process.cwd(),
+  });
+
+  node.on("close", (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function runSsg() {
+  const serverPath = resolve(process.cwd(), "dist/server.js");
+  const node = spawn("node", [serverPath], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+    env: { ...process.env, NEWSTACK_SSG: "true" },
   });
 
   node.on("close", (code) => {

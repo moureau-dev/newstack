@@ -342,6 +342,15 @@ export class NewstackServer {
   start(app: Newstack, opts?: { deps: Record<string, any> }): Hono {
     this.app = app;
     context.deps = opts?.deps ?? {};
+
+    if (process.env.NEWSTACK_SSG === "true") {
+      this.build(app, opts).then(() => process.exit(0)).catch((err) => {
+        console.error(err);
+        process.exit(1);
+      });
+      return this.server;
+    }
+
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
 
@@ -498,15 +507,18 @@ export class NewstackServer {
 
     // Copy client.js and client.css if hydration is enabled
     if (shouldHydrate) {
+      await loaders["client.js"]();
       const clientJsPath = join(outDir, "client.js");
       await writeFile(clientJsPath, files.get("client.js"), "utf-8");
       console.log("Copied client.js for hydration");
 
-      // Copy client.css if it exists
-      if (files.has("client.css")) {
+      try {
+        await loaders["client.css"]();
         const clientCssPath = join(outDir, "client.css");
         await writeFile(clientCssPath, files.get("client.css"), "utf-8");
         console.log("Copied client.css for styling");
+      } catch {
+        // No client.css, skip
       }
     }
 
