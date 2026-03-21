@@ -2,7 +2,7 @@
 import { randomUUID } from "crypto";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { readFile, writeFile, mkdir, cp, access } from "fs/promises";
+import { readFile, writeFile, mkdir, cp, access, readdir } from "fs/promises";
 
 /* ---------- External ---------- */
 import { serve } from "@hono/node-server";
@@ -351,6 +351,22 @@ export class NewstackServer {
       return this.server;
     }
 
+    if (process.env.NEWSTACK_SPA === "true") {
+      this.buildSpa(opts).then(() => process.exit(0)).catch((err) => {
+        console.error(err);
+        process.exit(1);
+      });
+      return this.server;
+    }
+
+    if (process.env.NEWSTACK_SPA_DEV === "true") {
+      this.setupSpaRoutes();
+      serve(this.server, ({ port }) => {
+        console.log(`Newstack SPA server is running on http://localhost:${port} 🚀`);
+      });
+      return this.server;
+    }
+
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
 
@@ -389,7 +405,7 @@ export class NewstackServer {
     context.deps = opts?.deps ?? {};
     this.renderer.setupAllComponents(this.app);
 
-    const outDir = opts?.outDir || "dist/public";
+    const outDir = opts?.outDir || "dist/ssg";
     const shouldHydrate = opts?.hydrate ?? true;
     const visitedPaths = new Set<string>();
     const pathsToVisit: string[] = ["/"];
@@ -482,9 +498,7 @@ export class NewstackServer {
       }
 
       // Write HTML file
-      const filePath = this.getFilePath(path, outDir);
-      await mkdir(dirname(filePath), { recursive: true });
-      await writeFile(filePath, html, "utf-8");
+      await this.writeHtmlFiles(path, outDir, html);
     }
 
     // Render any manually configured dynamic routes that weren't discovered
@@ -500,26 +514,12 @@ export class NewstackServer {
       const html = shouldHydrate
         ? await this.template()
         : await this.templateStatic();
-      const filePath = this.getFilePath(dynamicPath, outDir);
-      await mkdir(dirname(filePath), { recursive: true });
-      await writeFile(filePath, html, "utf-8");
+      await this.writeHtmlFiles(dynamicPath, outDir, html);
     }
 
-    // Copy client.js and client.css if hydration is enabled
+    // Copy all client-generated files if hydration is enabled
     if (shouldHydrate) {
-      await loaders["client.js"]();
-      const clientJsPath = join(outDir, "client.js");
-      await writeFile(clientJsPath, files.get("client.js"), "utf-8");
-      console.log("Copied client.js for hydration");
-
-      try {
-        await loaders["client.css"]();
-        const clientCssPath = join(outDir, "client.css");
-        await writeFile(clientCssPath, files.get("client.css"), "utf-8");
-        console.log("Copied client.css for styling");
-      } catch {
-        // No client.css, skip
-      }
+      await this.copyClientFiles(outDir);
     }
 
     // Copy public directory if it exists
@@ -528,6 +528,104 @@ export class NewstackServer {
     console.log("\nSSG build complete!");
     console.log(`Generated ${visitedPaths.size} pages in ${outDir}`);
     console.log("Pages:", Array.from(visitedPaths));
+  }
+
+  /**
+   * @description
+   * Builds a static SPA shell: a minimal index.html with no SSR content,
+   * plus client.js and client.css. The client handles all rendering and routing.
+   *
+   * @param opts Optional configuration including outDir.
+   */
+  /**
+   * @description
+   * Copies all client-generated files (client.js, client.css, and any split chunks)
+   * from the dist directory to the output directory.
+   *
+   * @param outDir The output directory to copy files into.
+   */
+  private async copyClientFiles(outDir: string): Promise<void> {
+    const distDir = resolve(__dirname);
+    const entries = await readdir(distDir);
+    const clientFiles = entries.filter((f) => f.startsWith("client"));
+
+    for (const file of clientFiles) {
+      const content = await readFile(join(distDir, file), "utf-8");
+      await writeFile(join(outDir, file), content, "utf-8");
+      console.log(`Copied ${file}`);
+    }
+  }
+
+  private async buildSpa(opts?: { outDir?: string; deps?: Record<string, any> }): Promise<void> {
+    const outDir = opts?.outDir || "dist/spa";
+    await mkdir(outDir, { recursive: true });
+
+    await this.copyClientFiles(outDir);
+
+    const cssLink = (await readdir(resolve(__dirname))).some((f) => f === "client.css")
+      ? `<link rel="stylesheet" href="/client.css?fingerprint=${hash}">`
+      : "";
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="module" src="/client.js?fingerprint=${hash}"></script>
+    ${cssLink}
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`;
+
+    await writeFile(join(outDir, "index.html"), html, "utf-8");
+    await this.copyPublicDirectory(outDir);
+
+    console.log("SPA build complete!");
+    console.log(`Output: ${outDir}`);
+  }
+
+  /**
+   * @description
+   * Sets up routes for SPA dev server mode.
+   * All routes return the same minimal HTML shell; the client handles routing.
+   */
+  private setupSpaRoutes(): void {
+    this.server.get("*", async (c) => {
+      const { path } = c.req;
+
+      if (path.includes(".")) {
+        const result = await this.handleFile(path.slice(1));
+        if (!result) return c.notFound();
+        const end = path.split(".").pop() || "";
+        c.header("Content-Type", mimeTypes[`.${end}`] || "text/plain");
+        return c.body(result);
+      }
+
+      if (!files.has("client.js")) await loaders["client.js"]();
+
+      let cssLink = "";
+      if (!files.has("client.css")) {
+        try { await loaders["client.css"](); } catch { /* no css */ }
+      }
+      if (files.has("client.css")) {
+        cssLink = `<link rel="stylesheet" href="/client.css?fingerprint=${hash}">`;
+      }
+
+      return c.html(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="module" src="/client.js?fingerprint=${hash}"></script>
+    ${cssLink}
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`);
+    });
   }
 
   /**
@@ -624,14 +722,32 @@ export class NewstackServer {
    * @param outDir The output directory.
    * @returns The file system path where the HTML should be written.
    */
-  private getFilePath(path: string, outDir: string): string {
+  /**
+   * @description
+   * Writes HTML to both the flat file path ([name].html) and the directory
+   * path ([name]/index.html) so both URL styles resolve correctly.
+   *
+   * @param path The URL path (e.g., "/about").
+   * @param outDir The output directory.
+   * @param html The HTML content to write.
+   */
+  private async writeHtmlFiles(path: string, outDir: string, html: string): Promise<void> {
     if (path === "/") {
-      return join(outDir, "index.html");
+      await writeFile(join(outDir, "index.html"), html, "utf-8");
+      return;
     }
 
-    // Remove leading slash and add .html extension
     const cleanPath = path.replace(/^\//, "");
-    return join(outDir, `${cleanPath}.html`);
+
+    // Flat: /about.html
+    const flatPath = join(outDir, `${cleanPath}.html`);
+    await mkdir(dirname(flatPath), { recursive: true });
+    await writeFile(flatPath, html, "utf-8");
+
+    // Directory: /about/index.html
+    const dirPath = join(outDir, cleanPath, "index.html");
+    await mkdir(dirname(dirPath), { recursive: true });
+    await writeFile(dirPath, html, "utf-8");
   }
 
   /**

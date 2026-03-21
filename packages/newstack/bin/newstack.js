@@ -22,7 +22,9 @@ if (!command) {
   console.log("Commands:");
   console.log("  build             Build server and client bundles");
   console.log("  build --mode=ssg  Build and generate static HTML pages");
+  console.log("  build --mode=spa  Build a client-only SPA");
   console.log("  start             Start development server");
+  console.log("  start --mode=spa  Start SPA dev server (no SSR)");
   console.log("");
   process.exit(1);
 }
@@ -30,13 +32,14 @@ if (!command) {
 switch (command) {
   case "build": {
     const mode = flags.mode || "ssr";
-    const onComplete = mode === "ssg" ? runSsg : null;
+    const onComplete = mode === "ssg" ? runSsg : mode === "spa" ? runSpa : null;
     build(onComplete);
     break;
   }
 
   case "start": {
-    build(run);
+    const mode = flags.mode || "ssr";
+    build(mode === "spa" ? runSpaDev : run);
     break;
   }
 
@@ -104,6 +107,32 @@ function runSsg() {
     stdio: "inherit",
     cwd: process.cwd(),
     env: { ...process.env, NEWSTACK_SSG: "true" },
+  });
+
+  node.on("close", (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function runSpa() {
+  const serverPath = resolve(process.cwd(), "dist/server.js");
+  const node = spawn("node", [serverPath], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+    env: { ...process.env, NEWSTACK_SPA: "true" },
+  });
+
+  node.on("close", (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function runSpaDev() {
+  const serverPath = resolve(process.cwd(), "dist/server.js");
+  const node = spawn("node", [serverPath], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+    env: { ...process.env, NEWSTACK_SPA_DEV: "true" },
   });
 
   node.on("close", (code) => {
