@@ -1,6 +1,10 @@
 import type { BuildOptions } from "esbuild";
+import { existsSync } from "fs";
 
 import { SplitBundle, NewstackPlugin } from "./plugins";
+
+const serverEntry = existsSync("server.ts") ? "server.ts" : "server.js";
+const clientEntry = existsSync("client.ts") ? "client.ts" : "client.js";
 
 /**
  * @description
@@ -11,7 +15,7 @@ import { SplitBundle, NewstackPlugin } from "./plugins";
  */
 export const server: BuildOptions = {
   bundle: true,
-  entryNames: "server.[js|ts]",
+  entryPoints: [serverEntry],
   outdir: "dist",
   plugins: [NewstackPlugin("server")],
   platform: "node",
@@ -29,7 +33,7 @@ export const server: BuildOptions = {
  */
 export const client: BuildOptions = {
   bundle: true,
-  entryNames: "client.[js|ts]",
+  entryPoints: [clientEntry],
   chunkNames: "client-[name]-[hash]",
   outdir: "dist",
   plugins: [SplitBundle(), NewstackPlugin("client")],
