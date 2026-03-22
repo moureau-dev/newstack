@@ -28,8 +28,8 @@ A framework **extremely** similar to [Nullstack](https://nullstack.app/), but us
   - [x] (Server) Environment
   - [x] (Client) Current route
   - [x] (Client) Environment
-  - [ ] (Server) Secrets
+  - [x] (Server) Secrets
   - [x] (Client) Page
   - [x] (Client) Params
   - [x] (Client) Router
-  - [ ] (Client) Settings
+  - [x] (Client) Settings
