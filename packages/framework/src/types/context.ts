@@ -136,5 +136,5 @@ export abstract class NewstackComponent<T> {
   abstract prepare(context?: NewstackClientContext<T>): void;
   abstract update(context?: NewstackClientContext<T>): void;
   abstract destroy(context?: NewstackClientContext<T>): void;
-  abstract render(context?: NewstackClientContext<T>): any;
+  abstract render(context?: NewstackClientContext<T>): JSX.Element;
 }
