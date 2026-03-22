@@ -78,7 +78,7 @@ export class NewstackClient {
    *
    * @param app The Newstack application instance to start on the client side.
    */
-  start(app: Newstack) {
+  async start(app: Newstack) {
     // HMR: when the bundle is re-imported after a JS change, a second
     // NewstackClient().start() call is triggered. Detect this and stash
     // the new app so hmrUpdate() can swap prototypes without re-initialising.
@@ -91,7 +91,7 @@ export class NewstackClient {
     this.renderer.setupAllComponents(this.app);
 
     this.app.prepare?.(this.context);
-    this.renderRoute(location.pathname);
+    await this.renderRoute(location.pathname);
     this.app.hydrate?.(this.context);
 
     if (typeof window !== "undefined") {
@@ -107,7 +107,7 @@ export class NewstackClient {
    *
    * @param href The URL path to render.
    */
-  renderRoute(href: string) {
+  async renderRoute(href: string) {
     this.context.path = href;
     this.destroyComponents();
 
@@ -123,7 +123,7 @@ export class NewstackClient {
 
     this.patchLinks();
 
-    this.startComponents();
+    await this.startComponents();
   }
 
   /**
@@ -141,14 +141,14 @@ export class NewstackClient {
         if (!href) return;
 
         history.pushState({}, "", href);
-        this.renderRoute(href);
+        void this.renderRoute(href);
       };
     });
 
     window.addEventListener(
       "popstate",
       () => {
-        this.renderRoute(location.pathname);
+        void this.renderRoute(location.pathname);
       },
       { once: true },
     );
@@ -197,12 +197,19 @@ export class NewstackClient {
    * This function prepares and hydrates all components that are currently visible in the route.
    * It is called after rendering a new route to ensure that all components are ready for interaction.
    */
-  private startComponents() {
+  private async startComponents() {
     const components = this.routeComponents();
 
     for (const component of components) {
-      component.prepare?.(this.context);
-      component.hydrate?.(this.context);
+      (component as any).__preparing = true;
+      await component.prepare?.(this.context);
+      (component as any).__preparing = false;
+      component.prepared = true;
+
+      (component as any).__hydrating = true;
+      await component.hydrate?.(this.context);
+      (component as any).__hydrating = false;
+      component.hydrated = true;
     }
   }
 

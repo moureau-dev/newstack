@@ -46,6 +46,11 @@ export abstract class Newstack<T = {}> extends NewstackComponent<T> {
     });
   }
 
+  /** Automatically set to true after prepare() completes. */
+  prepared = false;
+  /** Automatically set to true after hydrate() completes. */
+  hydrated = false;
+
   /** Method automatically ran in the server when this is being served for the first time and automatically ran in the client before the HTML is rendered in the DOM */
   prepare?(
     context?: NewstackClientContext<T> | NewstackServerContext<T>,

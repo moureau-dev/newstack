@@ -478,6 +478,8 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
     set(target, key, value) {
       target[key] = value;
 
+      if ((target as any).__hydrating || (target as any).__preparing) return true;
+
       // Pass proxy (not raw target) so render's `this` stays the proxy,
       // which keeps bind.object pointing at the proxy for future oninput calls.
       renderer.updateComponent(proxy);

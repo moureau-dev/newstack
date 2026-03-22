@@ -132,6 +132,8 @@ export type NewstackServerContext<T = unknown> = NewstackCommonContext & {
 } & T;
 
 export abstract class NewstackComponent<T> {
+  prepared: boolean;
+  hydrated: boolean;
   abstract hydrate(context?: NewstackClientContext<T>): void;
   abstract prepare(context?: NewstackClientContext<T>): void;
   abstract update(context?: NewstackClientContext<T>): void;
