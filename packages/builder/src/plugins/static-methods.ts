@@ -200,7 +200,10 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
 
     // Use regex to find the full "static async methodName" declaration
     // and replace it with the new arrow function
-    const escapedMethodName = r.methodName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedMethodName = r.methodName.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
 
     // Match from "static async methodName" through the end (using AST end position as guide)
     // Look for the pattern around the AST start position

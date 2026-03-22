@@ -1,13 +1,10 @@
-import type { Newstack, NewstackClientContext, NewstackServerContext } from "./core";
+import type {
+  Newstack,
+  NewstackClientContext,
+  NewstackServerContext,
+} from "./core";
 import type { Renderer } from "./renderer";
-import {
-  mkdir,
-  writeFile,
-  readFile,
-  readdir,
-  cp,
-  access,
-} from "fs/promises";
+import { mkdir, writeFile, readFile, readdir, cp, access } from "fs/promises";
 import { resolve, join, dirname } from "path";
 
 export type BuildOpts = {
@@ -46,7 +43,9 @@ export class BuildManager {
     const pathsToVisit: string[] = ["/"];
 
     const discoveredRoutes = this.discoverRoutes(app);
-    const dynamicRoutePatterns = discoveredRoutes.filter((r) => r.includes(":"));
+    const dynamicRoutePatterns = discoveredRoutes.filter((r) =>
+      r.includes(":"),
+    );
     const dynamicRoutePaths = new Set<string>();
 
     for (const path of opts?.dynamicRoutes || []) {

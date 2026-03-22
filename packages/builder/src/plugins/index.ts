@@ -4,7 +4,13 @@ import { Hasher } from "./hasher";
 import { ReplaceStaticMethods } from "./static-methods";
 import { IgnoreCss } from "./ignore-css";
 import { BindTransform, MethodBindTransform } from "./bind";
-export { Hasher, ReplaceStaticMethods, IgnoreCss, BindTransform, MethodBindTransform };
+export {
+  Hasher,
+  ReplaceStaticMethods,
+  IgnoreCss,
+  BindTransform,
+  MethodBindTransform,
+};
 export * from "./split-bundle";
 export { EnvPlugin } from "./env";
 
