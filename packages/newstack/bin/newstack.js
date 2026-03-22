@@ -129,7 +129,7 @@ async function runWatch() {
   const config = await loadConfig();
 
   let serverProcess = null;
-  let initialized = false;
+  let firstBuild = true;
 
   const restartServer = () => {
     if (serverProcess) serverProcess.kill("SIGTERM");
@@ -144,9 +144,9 @@ async function runWatch() {
         name: "newstack-server-restart",
         setup(build) {
           build.onEnd((result) => {
-            // Skip the initial build (server not started yet) and failed builds.
-            if (!initialized || result.errors.length > 0) return;
-            console.log("↺  Server rebuilt, restarting...");
+            if (result.errors.length > 0) return;
+            if (!firstBuild) console.log("↺  Server rebuilt, restarting...");
+            firstBuild = false;
             restartServer();
           });
         },
@@ -156,11 +156,7 @@ async function runWatch() {
 
   const clientCtx = await esbuildContext(config.client);
 
-  // watch() resolves after the initial build completes, then keeps watching.
   await Promise.all([serverCtx.watch(), clientCtx.watch()]);
-
-  initialized = true;
-  restartServer();
 
   const cleanup = async () => {
     await Promise.all([serverCtx.dispose(), clientCtx.dispose()]);

@@ -3,18 +3,18 @@
   "version": "0.0.1",
   "description": "Scaffold a new Newstack application",
   "type": "module",
+  "files": ["dist"],
   "bin": {
     "create-newstack-app": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --minify --target=node20 --outfile=dist/index.js"
-  },
-  "dependencies": {
-    "newstack": "workspace:^"
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --minify --target=node20 --outfile=dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "esbuild": "^0.25.5",
     "typescript": "^5"
   }
 }

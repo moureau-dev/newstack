@@ -1,7 +1,10 @@
 import type { BuildOptions } from "esbuild";
 import { existsSync } from "fs";
+import { fileURLToPath } from "url";
 
 import { SplitBundle, NewstackPlugin } from "./plugins";
+
+const jsxInjectPath = fileURLToPath(new URL("./jsx-shim.js", import.meta.url));
 
 const serverEntry = existsSync("server.ts") ? "server.ts" : "server.js";
 const clientEntry = existsSync("client.ts") ? "client.ts" : "client.js";
@@ -22,7 +25,7 @@ export const server: BuildOptions = {
   format: "esm",
   target: "es2020",
   jsxFactory: "h",
-  inject: ["@newstack/jsx"],
+  inject: [jsxInjectPath],
   conditions: ["source"],
 };
 
@@ -43,6 +46,6 @@ export const client: BuildOptions = {
   target: "esnext",
   format: "esm",
   jsxFactory: "h",
-  inject: ["@newstack/jsx"],
+  inject: [jsxInjectPath],
   conditions: ["source"],
 };

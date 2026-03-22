@@ -36,11 +36,9 @@
       "bin": {
         "create-newstack-app": "./dist/index.js",
       },
-      "dependencies": {
-        "newstack": "workspace:^",
-      },
       "devDependencies": {
         "@types/node": "^20",
+        "esbuild": "^0.25.5",
         "typescript": "^5",
       },
     },
@@ -66,13 +64,13 @@
         "newstack": "./bin/newstack.js",
       },
       "dependencies": {
-        "@newstack/builder": "workspace:^",
-        "@newstack/framework": "workspace:^",
-        "@newstack/jsx": "workspace:^",
         "@swc/core": "^1.15.2",
         "esbuild": "^0.25.5",
       },
       "devDependencies": {
+        "@newstack/builder": "workspace:^",
+        "@newstack/framework": "workspace:^",
+        "@newstack/jsx": "workspace:^",
         "@types/node": "^20",
         "concurrently": "^9",
         "dts-bundle-generator": "^9",
