@@ -61,6 +61,11 @@ export abstract class Newstack<T = {}> extends NewstackComponent<T> {
   update?(context?: NewstackClientContext<T>): VoidOrPromise;
   /** Method automatically ran in the client when the component is no longer in the DOM. */
   destroy?(context?: NewstackClientContext<T>): VoidOrPromise;
+  /**
+   * @deprecated Use `destroy` instead.
+   * Alias for `destroy` — kept for Nullstack compatibility.
+   */
+  terminate?(context?: NewstackClientContext<T>): VoidOrPromise;
   /** Method automatically ran in the client for reactivity and ran once in the server for first-page-view SSR. */
   render?(context?: NewstackClientContext<T>): any;
 }

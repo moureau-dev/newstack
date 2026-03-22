@@ -186,6 +186,7 @@ export class NewstackClient {
 
     for (const component of components) {
       component.destroy?.(this.context);
+      component.terminate?.(this.context);
     }
 
     this.renderer.visibleHashes.clear();
