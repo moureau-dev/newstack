@@ -19,8 +19,8 @@ export class List extends Newstack {
 
   render() {
     return (
-      <div>
-        <h2>List Component</h2>
+      <div class="py-8 px-2 border-t-2" id="list-component">
+        <h2 class="font-bold">List Component</h2>
 
         <p>This component displays a list of items.</p>
 

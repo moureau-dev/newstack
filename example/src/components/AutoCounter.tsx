@@ -30,8 +30,8 @@ export class AutoCounter extends Newstack {
 
   render() {
     return (
-      <div id="counter-component">
-        <h2>Counter</h2>
+      <div class="py-8 px-2 border-t-2" id="counter-component">
+        <h2 class="font-bold">Counter</h2>
 
         <p>This is a reusable component in the Newstack application.</p>
         <b>Current count: {this.count}</b>

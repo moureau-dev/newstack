@@ -14,8 +14,8 @@ export class ChangeStringOnHydrate extends Newstack {
 
   render() {
     return (
-      <div id="change-string-component">
-        <h2>Change String Component</h2>
+      <div class="py-8 px-2 border-t-2" id="change-string-component">
+        <h2 class="font-bold">Change String Component</h2>
 
         <p>This component changes a string value.</p>
         <b>Current string: {this.str}</b>

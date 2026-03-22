@@ -23,8 +23,8 @@ export class DynamicImport extends Newstack {
 
   render() {
     return (
-      <div id="dynamic-import-component">
-        <h2>Dynamic Import</h2>
+      <div class="py-8 px-2 border-t-2" id="dynamic-import-component">
+        <h2 class="font-bold">Dynamic Import</h2>
 
         <p>This component demonstrates dynamic import of a module.</p>
         <b>Module imported: {this.imported ? "Yes" : "No"}</b>

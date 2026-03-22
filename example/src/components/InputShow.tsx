@@ -15,11 +15,15 @@ export class InputShow extends Newstack {
 
   render() {
     return (
-      <div id="input-show-component">
-        <h2>Input Show</h2>
+      <div class="py-8 px-2 border-t-2" id="input-show-component">
+        <h2 class="font-bold">Input Show</h2>
 
         <p>This component shows the input value.</p>
-        <input type="text" oninput={this.oninput.bind(this)} />
+        <input
+          class="border p-2"
+          type="text"
+          oninput={this.oninput.bind(this)}
+        />
         <b>Current input: {this.inputValue}</b>
       </div>
     );

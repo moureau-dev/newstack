@@ -24,8 +24,8 @@ export class SayHelloAppender extends Newstack {
 
   render() {
     return (
-      <div id="say-hello-appender-component">
-        <h2>Say Hello Appender</h2>
+      <div class="py-8 px-2 border-t-2" id="say-hello-appender-component">
+        <h2 class="font-bold">Say Hello Appender</h2>
 
         <pre>{this.message}</pre>
 

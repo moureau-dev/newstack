@@ -23,8 +23,8 @@ export class ManualCounter extends Newstack {
 
   render() {
     return (
-      <div>
-        <h2>Manual counter</h2>
+      <div class="py-8 px-2 border-t-2" id="manual-counter-component">
+        <h2 class="font-bold">Manual counter</h2>
 
         <p>
           This component demonstrates a counter that grows as we click.{" "}

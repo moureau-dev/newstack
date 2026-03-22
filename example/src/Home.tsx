@@ -27,7 +27,9 @@ export class Home extends Newstack {
       <div>
         <h1>Welcome to Newstack! </h1>
 
-        <p class="text-5xl text-blue-500 font-bold">This is a!</p>
+        <p class="text-2xl text-blue-500 font-bold">
+          This is a Newstack Example!
+        </p>
 
         {/* <DynamicImport /> */}
         <AutoCounter />
@@ -37,27 +39,29 @@ export class Home extends Newstack {
         <List />
         <SayHelloAppender />
 
-        <a href="/about">About</a>
-        <a href="/profile/123">Profile 123</a>
+        <footer class="flex gap-4 items-center">
+          <a href="/about">About</a>
+          <a href="/profile/123">Profile 123</a>
 
-        <button
-          type="button"
-          onclick={() => {
-            console.log("Navigating to /about");
-            router.path = "/about";
-          }}
-        >
-          Go to about
-        </button>
+          <button
+            type="button"
+            onclick={() => {
+              console.log("Navigating to /about");
+              router.path = "/about";
+            }}
+          >
+            Go to about
+          </button>
 
-        <button
-          type="button"
-          onclick={() => {
-            router.path = "/profile/1";
-          }}
-        >
-          Go to profile 1
-        </button>
+          <button
+            type="button"
+            onclick={() => {
+              router.path = "/profile/1";
+            }}
+          >
+            Go to profile 1
+          </button>
+        </footer>
       </div>
     );
   }
