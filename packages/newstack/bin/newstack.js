@@ -2,11 +2,13 @@
 
 import { spawn } from "child_process";
 import { resolve } from "path";
+import { mkdir } from "fs/promises";
+import { pathToFileURL } from "url";
+import { context as esbuildContext, build as esbuildBuild } from "esbuild";
 
 const args = process.argv.slice(2);
 const command = args[0];
 
-// Parse flags
 const flags = {};
 for (let i = 1; i < args.length; i++) {
   const arg = args[i];
@@ -23,7 +25,7 @@ if (!command) {
   console.log("  build             Build server and client bundles");
   console.log("  build --mode=ssg  Build and generate static HTML pages");
   console.log("  build --mode=spa  Build a client-only SPA");
-  console.log("  start             Start development server");
+  console.log("  start             Start development server with HMR");
   console.log("  start --mode=spa  Start SPA dev server (no SSR)");
   console.log("");
   process.exit(1);
@@ -32,15 +34,17 @@ if (!command) {
 switch (command) {
   case "build": {
     const mode = flags.mode || "ssr";
-    const onComplete = mode === "ssg" ? runSsg : mode === "spa" ? runSpa : null;
-    build(onComplete);
+    await runBuild(mode);
     break;
   }
 
   case "start": {
     const mode = flags.mode || "ssr";
-    if (mode === "spa") build(runSpaDev);
-    else buildWatch(runWatch);
+    if (mode === "spa") {
+      await runBuild("spa-dev");
+    } else {
+      await runWatch();
+    }
     break;
   }
 
@@ -49,152 +53,110 @@ switch (command) {
     process.exit(1);
 }
 
-function build(onComplete) {
+/**
+ * Bundles the user's esbuild.config.ts to a temp .mjs file and imports it.
+ * The config should export a default object with { server, client } build options.
+ * Using packages:external so native add-ons (e.g. Tailwind's oxide) are never
+ * bundled — they're loaded from node_modules at runtime by Node itself.
+ */
+async function loadConfig() {
   const configPath = resolve(process.cwd(), "esbuild.config.ts");
+  const outFile = resolve(process.cwd(), "dist", ".newstack-config.mjs");
 
-  const esbuildArgs = [
-    "--bundle",
-    "--platform=node",
-    "--format=esm",
-    "--packages=external",
-    configPath,
-  ];
+  await mkdir(resolve(process.cwd(), "dist"), { recursive: true });
 
-  const esbuild = spawn("esbuild", esbuildArgs, {
-    stdio: ["inherit", "pipe", "inherit"],
-    cwd: process.cwd(),
+  await esbuildBuild({
+    entryPoints: [configPath],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    packages: "external",
+    outfile: outFile,
+    write: true,
+    logLevel: "silent",
   });
 
-  const node = spawn("node", [], {
-    stdio: ["pipe", "inherit", "inherit"],
-    cwd: process.cwd(),
-  });
-
-  esbuild.stdout.pipe(node.stdin);
-
-  esbuild.on("error", (err) => {
-    console.error("Failed to start esbuild:", err);
-    process.exit(1);
-  });
-
-  node.on("error", (err) => {
-    console.error("Failed to start node:", err);
-    process.exit(1);
-  });
-
-  node.on("close", (code) => {
-    if (code !== 0) process.exit(code);
-    if (onComplete) onComplete();
-    else process.exit(0);
-  });
+  const { default: config } = await import(pathToFileURL(outFile).href);
+  return config;
 }
 
 /**
- * Runs esbuild.config.ts in watch mode (NEWSTACK_WATCH=true).
- * Waits for the sentinel "__NEWSTACK_WATCH_READY__" on stdout before
- * calling onReady(), which starts the dev server. Installs SIGINT/SIGTERM
- * handlers so both the config runner and server process are cleaned up.
+ * One-shot build: load config, create contexts, rebuild, dispose.
  */
-function buildWatch(onReady) {
-  const configPath = resolve(process.cwd(), "esbuild.config.ts");
+async function buildOnce() {
+  const config = await loadConfig();
 
-  const esbuild = spawn(
-    "esbuild",
-    ["--bundle", "--platform=node", "--format=esm", "--packages=external", configPath],
-    { stdio: ["inherit", "pipe", "inherit"], cwd: process.cwd() },
-  );
+  console.time("Time taken");
+  console.log("Building server...");
+  const serverCtx = await esbuildContext(config.server);
+  await serverCtx.rebuild();
+  await serverCtx.dispose();
 
-  const configRunner = spawn("node", [], {
-    stdio: ["pipe", "pipe", "inherit"],
-    cwd: process.cwd(),
-    env: { ...process.env, NEWSTACK_WATCH: "true" },
-  });
+  console.log("Building client...");
+  const clientCtx = await esbuildContext(config.client);
+  await clientCtx.rebuild();
+  await clientCtx.dispose();
 
-  esbuild.stdout.pipe(configRunner.stdin);
+  console.log("Build completed successfully!");
+  console.timeEnd("Time taken");
+}
 
-  let serverProcess = null;
-  let started = false;
+async function runBuild(mode) {
+  await buildOnce();
 
-  configRunner.stdout.on("data", (chunk) => {
-    const text = chunk.toString();
-    // Forward everything except the internal sentinel line
-    const visible = text.replace("__NEWSTACK_WATCH_READY__\n", "");
-    if (visible) process.stdout.write(visible);
+  if (mode === "ssg") {
+    spawnServer({ NEWSTACK_SSG: "true" });
+  } else if (mode === "spa") {
+    spawnServer({ NEWSTACK_SPA: "true" });
+  } else if (mode === "spa-dev") {
+    spawnServer({ NEWSTACK_SPA_DEV: "true" });
+  } else {
+    process.exit(0);
+  }
+}
 
-    if (!started && text.includes("__NEWSTACK_WATCH_READY__")) {
-      started = true;
-      serverProcess = onReady();
-    }
-  });
+/**
+ * Watch mode: load config once, create contexts, start watching (which also
+ * does the initial build), then spawn the dev server.
+ * SIGINT/SIGTERM dispose both contexts and kill the server — no orphan watchers.
+ */
+async function runWatch() {
+  const config = await loadConfig();
 
-  const cleanup = () => {
-    configRunner.kill("SIGTERM");
-    if (serverProcess) serverProcess.kill("SIGTERM");
+  const serverCtx = await esbuildContext(config.server);
+  const clientCtx = await esbuildContext(config.client);
+
+  // watch() resolves after the initial build completes, then keeps watching.
+  await Promise.all([serverCtx.watch(), clientCtx.watch()]);
+
+  const serverProcess = spawnServer({ NEWSTACK_WATCH: "true" });
+
+  const cleanup = async () => {
+    await Promise.all([serverCtx.dispose(), clientCtx.dispose()]);
+    serverProcess.kill("SIGTERM");
     process.exit(0);
   };
 
   process.on("SIGINT", cleanup);
   process.on("SIGTERM", cleanup);
+}
 
-  configRunner.on("exit", (code) => {
-    if (code && code !== 0) {
-      if (serverProcess) serverProcess.kill("SIGTERM");
-      process.exit(code);
-    }
+function spawnServer(env = {}) {
+  const serverPath = resolve(process.cwd(), "dist/server.js");
+  const proc = spawn("node", [serverPath], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+    env: { ...process.env, ...env },
   });
 
-  esbuild.on("error", (err) => {
-    console.error("Failed to start esbuild:", err);
+  proc.on("error", (err) => {
+    console.error("Failed to start server:", err);
     process.exit(1);
   });
-}
 
-function runWatch() {
-  const serverPath = resolve(process.cwd(), "dist/server.js");
-  const node = spawn("node", [serverPath], {
-    stdio: "inherit",
-    cwd: process.cwd(),
-    env: { ...process.env, NEWSTACK_WATCH: "true" },
-  });
-  // Don't exit the CLI when the server exits in watch mode — let cleanup() handle it
-  return node;
-}
-
-function runSsg() {
-  const serverPath = resolve(process.cwd(), "dist/server.js");
-  const node = spawn("node", [serverPath], {
-    stdio: "inherit",
-    cwd: process.cwd(),
-    env: { ...process.env, NEWSTACK_SSG: "true" },
-  });
-
-  node.on("close", (code) => {
+  proc.on("close", (code) => {
     process.exit(code || 0);
   });
-}
 
-function runSpa() {
-  const serverPath = resolve(process.cwd(), "dist/server.js");
-  const node = spawn("node", [serverPath], {
-    stdio: "inherit",
-    cwd: process.cwd(),
-    env: { ...process.env, NEWSTACK_SPA: "true" },
-  });
-
-  node.on("close", (code) => {
-    process.exit(code || 0);
-  });
-}
-
-function runSpaDev() {
-  const serverPath = resolve(process.cwd(), "dist/server.js");
-  const node = spawn("node", [serverPath], {
-    stdio: "inherit",
-    cwd: process.cwd(),
-    env: { ...process.env, NEWSTACK_SPA_DEV: "true" },
-  });
-
-  node.on("close", (code) => {
-    process.exit(code || 0);
-  });
+  return proc;
 }

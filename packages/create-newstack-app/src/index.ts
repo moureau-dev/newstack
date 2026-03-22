@@ -143,38 +143,16 @@ new NewstackClient().start(app);
 
   // Create esbuild.config.ts
   const esbuildConfig = `/* ---------- External ---------- */
-import { context } from "newstack/esbuild";
 import { builder } from "newstack/builder";
 ${withTailwind ? `import tailwindPlugin from "esbuild-plugin-tailwindcss";\n` : ""}
-const production = false;
-
-async function build() {
-  console.time("Time taken");
-
-  console.log("Building server...");
-  const server = await context({
+export default {
+  server: {
     ...builder.server,
-    minify: production,
-  });
-
-  await server.rebuild();
-  await server.dispose();
-
-  console.log("Building client...");
-  const client = await context({
-    ...builder.client,
-    ignoreAnnotations: production,
-    legalComments: production ? "none" : "external",
-    minify: production,${withTailwind ? "\n    plugins: [...(builder.client.plugins ?? []), tailwindPlugin()]," : ""}
-  });
-  await client.rebuild();
-  await client.dispose();
-
-  console.log("Build completed successfully!");
-  console.timeEnd("Time taken");
-}
-
-build();
+  },
+  client: {
+    ...builder.client,${withTailwind ? "\n    plugins: [...builder.client.plugins, tailwindPlugin()]," : ""}
+  },
+};
 `;
 
   await writeFile(join(projectPath, "esbuild.config.ts"), esbuildConfig);

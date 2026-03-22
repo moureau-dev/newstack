@@ -273,18 +273,26 @@ export class NewstackServer {
       .get("/client.js", async (c) => {
         await loaders["client.js"]();
 
+        const dev = process.env.NEWSTACK_WATCH === "true";
         c.header("Content-Type", "application/javascript");
-        c.header("Cache-Control", "public, max-age=87600, immutable");
-        c.header("X-Newstack-Fingerprint", hash);
+        c.header(
+          "Cache-Control",
+          dev ? "no-store" : "public, max-age=87600, immutable",
+        );
+        if (!dev) c.header("X-Newstack-Fingerprint", hash);
 
         return c.body(files.get("client.js"));
       })
       .get("/client.css", async (c) => {
         await loaders["client.css"]();
 
+        const dev = process.env.NEWSTACK_WATCH === "true";
         c.header("Content-Type", "text/css");
-        c.header("Cache-Control", "public, max-age=87600, immutable");
-        c.header("X-Newstack-Fingerprint", hash);
+        c.header(
+          "Cache-Control",
+          dev ? "no-store" : "public, max-age=87600, immutable",
+        );
+        if (!dev) c.header("X-Newstack-Fingerprint", hash);
 
         return c.body(files.get("client.css"));
       });
@@ -379,8 +387,8 @@ export class NewstackServer {
       	      body { font-family: Arial, sans-serif; }
             </style>
 
-      	    <script type="module" src="/client.js?fingerprint=${hash}"></script>
-            <link rel="stylesheet" href="/client.css?fingerprint=${hash}"></link>
+      	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
+            <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
             <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
             ${hmrScript}
         </head>
