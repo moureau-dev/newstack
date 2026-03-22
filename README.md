@@ -8,7 +8,7 @@ A framework **extremely** similar to [Nullstack](https://nullstack.app/), but us
 
 # Roadmap
 - [x] Server-side rendering
-- [ ] Client-side rendering
+- [x] Client-side rendering
   - [x] Hydration
   - [x] Navigation
   - [x] Destruction 
@@ -23,8 +23,8 @@ A framework **extremely** similar to [Nullstack](https://nullstack.app/), but us
 - [ ] Option to build for Node and Bun
 - [ ] Biome integration
 - [ ] Tests
-- [ ] CLI to create new projects
-- [ ] Context
+- [x] CLI to create new projects
+- [x] Context
   - [x] (Server) Environment
   - [x] (Client) Current route
   - [x] (Client) Environment
