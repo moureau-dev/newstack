@@ -118,22 +118,53 @@ async function runBuild(mode) {
 /**
  * Watch mode: load config once, create contexts, start watching (which also
  * does the initial build), then spawn the dev server.
+ *
+ * The server context gets an onEnd plugin that restarts the server process
+ * whenever dist/server.js is successfully rebuilt — keeping server and client
+ * code in sync. The browser detects the dropped SSE connection and reloads.
+ *
  * SIGINT/SIGTERM dispose both contexts and kill the server — no orphan watchers.
  */
 async function runWatch() {
   const config = await loadConfig();
 
-  const serverCtx = await esbuildContext(config.server);
+  let serverProcess = null;
+  let initialized = false;
+
+  const restartServer = () => {
+    if (serverProcess) serverProcess.kill("SIGTERM");
+    serverProcess = spawnServer({ NEWSTACK_WATCH: "true" }, false);
+  };
+
+  const serverCtx = await esbuildContext({
+    ...config.server,
+    plugins: [
+      ...(config.server.plugins ?? []),
+      {
+        name: "newstack-server-restart",
+        setup(build) {
+          build.onEnd((result) => {
+            // Skip the initial build (server not started yet) and failed builds.
+            if (!initialized || result.errors.length > 0) return;
+            console.log("↺  Server rebuilt, restarting...");
+            restartServer();
+          });
+        },
+      },
+    ],
+  });
+
   const clientCtx = await esbuildContext(config.client);
 
   // watch() resolves after the initial build completes, then keeps watching.
   await Promise.all([serverCtx.watch(), clientCtx.watch()]);
 
-  const serverProcess = spawnServer({ NEWSTACK_WATCH: "true" });
+  initialized = true;
+  restartServer();
 
   const cleanup = async () => {
     await Promise.all([serverCtx.dispose(), clientCtx.dispose()]);
-    serverProcess.kill("SIGTERM");
+    if (serverProcess) serverProcess.kill("SIGTERM");
     process.exit(0);
   };
 
@@ -141,7 +172,12 @@ async function runWatch() {
   process.on("SIGTERM", cleanup);
 }
 
-function spawnServer(env = {}) {
+/**
+ * @param {Record<string, string>} env  Extra env vars passed to the server process.
+ * @param {boolean} exitOnClose  If true, the CLI exits when the server process exits.
+ *                               Set false in watch mode so restarts don't kill the CLI.
+ */
+function spawnServer(env = {}, exitOnClose = true) {
   const serverPath = resolve(process.cwd(), "dist/server.js");
   const proc = spawn("node", [serverPath], {
     stdio: "inherit",
@@ -151,11 +187,11 @@ function spawnServer(env = {}) {
 
   proc.on("error", (err) => {
     console.error("Failed to start server:", err);
-    process.exit(1);
+    if (exitOnClose) process.exit(1);
   });
 
   proc.on("close", (code) => {
-    process.exit(code || 0);
+    if (exitOnClose) process.exit(code || 0);
   });
 
   return proc;

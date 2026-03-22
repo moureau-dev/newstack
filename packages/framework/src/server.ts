@@ -345,20 +345,27 @@ export class NewstackServer {
     const hmrScript =
       process.env.NEWSTACK_WATCH === "true"
         ? `<script type="module">
-    const es = new EventSource('/hmr');
-    es.onmessage = async (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'css') {
-        const link = document.querySelector('link[rel="stylesheet"]');
-        if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
-      } else if (msg.type === 'js') {
-        await import('/client.js?t=' + Date.now());
-        if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
-          window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
-          window.__NEWSTACK_PENDING = null;
+    function connectHmr() {
+      const es = new EventSource('/hmr');
+      es.onmessage = async (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'css') {
+          const link = document.querySelector('link[rel="stylesheet"]');
+          if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
+        } else if (msg.type === 'js') {
+          await import('/client.js?t=' + Date.now());
+          if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
+            window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
+            window.__NEWSTACK_PENDING = null;
+          }
         }
-      }
-    };
+      };
+      es.onerror = () => {
+        es.close();
+        setTimeout(() => window.location.reload(), 1000);
+      };
+    }
+    connectHmr();
   </script>`
         : "";
 
