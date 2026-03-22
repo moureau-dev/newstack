@@ -62,6 +62,7 @@ export class NewstackClient {
       page,
       router,
       params: {},
+      instances: new Proxy({} as Record<string, any>, { get: (t, k) => k in t ? t[k as string] : {} }),
       settings: __NEWSTACK_SETTINGS__ ?? {},
     };
 
@@ -185,11 +186,17 @@ export class NewstackClient {
     const components = this.routeComponents();
 
     for (const component of components) {
+      const hash = (component.constructor as any).hash as string;
+      if (this.renderer.persistentHashes.has(hash)) continue;
       component.destroy?.(this.context);
       component.terminate?.(this.context);
     }
 
-    this.renderer.visibleHashes.clear();
+    for (const hash of this.renderer.visibleHashes) {
+      if (!this.renderer.persistentHashes.has(hash)) {
+        this.renderer.visibleHashes.delete(hash);
+      }
+    }
   }
 
   /**
@@ -202,6 +209,9 @@ export class NewstackClient {
     const components = this.routeComponents();
 
     for (const component of components) {
+      const hash = (component.constructor as any).hash as string;
+      if (this.renderer.persistentHashes.has(hash) && component.hydrated) continue;
+
       (component as any).__preparing = true;
       await component.prepare?.(this.context);
       (component as any).__preparing = false;

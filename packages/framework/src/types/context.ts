@@ -1,3 +1,5 @@
+import type { Newstack } from "../core";
+
 export type IconSize = 72 | 96 | 128 | 144 | 152 | 192 | 384 | 512;
 
 export type NewstackNode =
@@ -52,7 +54,7 @@ export interface NewstackWorker {}
  * Collection of instances of Newstack classes that can be used to store
  * and manage state or services across the application.
  */
-// export interface NewstackInstances extends Record<string, Newstack> { }
+export interface NewstackInstances extends Record<string, Newstack> {}
 
 interface NewstackCommonContext {
   /**
@@ -73,6 +75,13 @@ interface NewstackCommonContext {
   // environment: NewstackEnvironment;
 
   path: string;
+
+  /**
+   * Registry of named component instances.
+   * Components declare themselves with key="name" and become accessible
+   * to the entire tree via context.instances.name
+   */
+  instances: NewstackInstances;
 }
 
 export type NewstackClientContext<T = unknown> = NewstackCommonContext & {

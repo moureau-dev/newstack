@@ -31,6 +31,7 @@ export class Renderer {
    * This is used to track which components should be rendered based on the current route.
    */
   visibleHashes: Set<string> = new Set();
+  persistentHashes: Set<string> = new Set();
 
   /**
    * @description
@@ -183,8 +184,11 @@ export class Renderer {
     // Rendering Newstack components
     if (isComponent) {
       const { hash } = type as unknown as { hash: string };
+      const isPersistent = Boolean(props?.persistent);
+      if (isPersistent) this.persistentHashes.add(hash);
+
       let { component, reinitiate } = this.components.get(hash);
-      if (this.context.environment === "client" && !this.isUpdating) {
+      if (this.context.environment === "client" && !this.isUpdating && !isPersistent) {
         component = reinitiate();
 
         if (!this.lastVNode) {
@@ -198,6 +202,10 @@ export class Renderer {
             this.addSnapshotStateData(component, states);
           }
         }
+      }
+
+      if (props?.key) {
+        this.context.instances[props.key as string] = component;
       }
 
       const isRenderable = isRenderableComponent(component);
@@ -218,6 +226,8 @@ export class Renderer {
         const node = this.html(vnode);
         return node;
       }
+
+      return "";
     }
 
     const children = Array.isArray(props?.children)
@@ -225,7 +235,7 @@ export class Renderer {
       : this.html(props?.children);
 
     const attrs = Object.entries(props || {})
-      .filter(([key]) => !["route", "children", "bind"].includes(key))
+      .filter(([key]) => !["route", "children", "bind", "key", "persistent"].includes(key))
       .filter(([key, val]) => {
         const isFunc = typeof val === "function";
 

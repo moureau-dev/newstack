@@ -95,6 +95,7 @@ function loadFromEnv(prefix: string): Record<string, string> {
 const context = proxifyContext({
   environment: "server",
   params: {},
+  instances: new Proxy({} as Record<string, any>, { get: (t, k) => k in t ? t[k as string] : {} }),
   page: {} as NewstackClientContext["page"],
   router: {} as NewstackClientContext["router"],
 }) as NewstackServerContext & NewstackClientContext;
