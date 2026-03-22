@@ -18,7 +18,7 @@ import { SayHelloAppender } from "./components/SayHelloAppender";
  */
 export class Home extends Newstack {
   prepare({ page }: NewstackClientContext) {
-    page.title = "Newstack Example Application";
+    page.title = "Newstack";
     page.description = "A simple example of a Newstack application.";
   }
 
@@ -27,9 +27,9 @@ export class Home extends Newstack {
       <div>
         <h1>Welcome to Newstack! </h1>
 
-        <p class="hello">This is a simple example of a Newstack application.</p>
+        <p class="text-5xl text-blue-500 font-bold">This is a!</p>
 
-        <DynamicImport />
+        {/* <DynamicImport /> */}
         <AutoCounter />
         <ChangeStringOnHydrate />
         <ManualCounter />

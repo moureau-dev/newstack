@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "newstack start",
-    "build": "newstack build",
-    "build:ssg": "newstack build && node dist/ssg.js",
-    "prestart": "newstack build"
+    "build": "newstack build"
   },
   "dependencies": {
     "socket.io-client": "^4.8.1",
     "newstack": "workspace:*",
     "esbuild": "^0.25.5",
-    "@swc/core": "^1.15.2"
+    "@swc/core": "^1.15.2",
+    "tailwindcss": "^4",
+    "esbuild-plugin-tailwindcss": "^2"
   }
 }
