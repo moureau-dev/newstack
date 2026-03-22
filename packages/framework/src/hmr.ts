@@ -8,8 +8,6 @@ import { watch as watchFs } from "fs";
  */
 export class HmrManager {
   private readonly clients = new Set<(data: string) => void>();
-  private readonly startTime = Date.now();
-
   constructor(
     private readonly server: Hono,
     private readonly distDir: string,
@@ -29,7 +27,8 @@ export class HmrManager {
   setup(): void {
     const encoder = new TextEncoder();
 
-    this.server.get("/hmr", (_c) => {
+    this.server.get("/hmr", (c) => {
+      const isReconnect = c.req.query("reconnect") === "true";
       let clientSend: ((data: string) => void) | null = null;
 
       const body = new ReadableStream({
@@ -43,11 +42,8 @@ export class HmrManager {
           };
           this.clients.add(clientSend);
 
-          // Connections arriving >500ms after server start are reconnects
-          // (not initial page loads). Push a JS update immediately so the
-          // browser hot-swaps without requiring a manual reload.
-          if (Date.now() - this.startTime > 500) {
-            setTimeout(() => clientSend?.(JSON.stringify({ type: "js" })), 50);
+          if (isReconnect) {
+            clientSend(JSON.stringify({ type: "js" }));
           }
         },
         cancel: () => {
@@ -79,7 +75,7 @@ export class HmrManager {
         for (const type of pending) this.notify({ type });
         pending.clear();
         debounce = null;
-      }, 100);
+      }, 50);
     });
   }
 
@@ -95,8 +91,8 @@ export class HmrManager {
       }
     }
 
-    function connectHmr() {
-      const es = new EventSource('/hmr');
+    function connectHmr(reconnect = false) {
+      const es = new EventSource('/hmr' + (reconnect ? '?reconnect=true' : ''));
       es.onmessage = async (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === 'css') {
@@ -108,7 +104,7 @@ export class HmrManager {
       };
       es.onerror = () => {
         es.close();
-        setTimeout(connectHmr, 1000);
+        setTimeout(() => connectHmr(true), 100);
       };
     }
     connectHmr();
