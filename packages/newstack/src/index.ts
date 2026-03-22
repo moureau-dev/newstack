@@ -4,4 +4,5 @@ export { NewstackClient, runtime } from "@newstack/framework";
 export type {
   NewstackClientContext,
   NewstackServerContext,
+  NewstackNode,
 } from "@newstack/framework";

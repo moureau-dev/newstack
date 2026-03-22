@@ -6,7 +6,11 @@ import {
 
 type VoidOrPromise = void | Promise<void>;
 
-export { NewstackClientContext, NewstackServerContext } from "./types/context";
+export {
+  NewstackClientContext,
+  NewstackServerContext,
+  NewstackNode,
+} from "./types/context";
 
 /**
  * @description

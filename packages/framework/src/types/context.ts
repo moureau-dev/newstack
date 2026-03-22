@@ -1,5 +1,13 @@
 export type IconSize = 72 | 96 | 128 | 144 | 152 | 192 | 384 | 512;
 
+export type NewstackNode =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | NewstackNode[];
+
 export interface NewstackPage {
   title: string;
   image: string;
@@ -31,8 +39,10 @@ export interface NewstackEnvironment {
 }
 
 export interface NewstackParams extends Record<string, string | boolean> {}
-export interface NewstackSettings extends Record<string, string | number | boolean> {}
-export interface NewstackSecrets extends Record<string, string | number | boolean> {}
+export interface NewstackSettings
+  extends Record<string, string | number | boolean> {}
+export interface NewstackSecrets
+  extends Record<string, string | number | boolean> {}
 export interface NewstackDependencies extends Record<string, any> {}
 
 // biome-ignore lint/suspicious/noEmptyInterface:
