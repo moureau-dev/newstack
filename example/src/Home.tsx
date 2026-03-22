@@ -22,12 +22,14 @@ export class Home extends Newstack {
     page.description = "A simple example of a Newstack application.";
   }
 
-  render({ router }: NewstackClientContext) {
+  hydrate() {}
+
+  render({ router, settings }: NewstackClientContext) {
     return (
       <div>
-        <h1>Welcome to Newstack!</h1>
+        <h1>Welcome to Newstack! {settings.mySetting}</h1>
 
-        <p class="text-2xl text-blue-500 font-bold">
+        <p class="text-2xl text-blue-500 font-medium">
           This is a Newstack Example!
         </p>
 

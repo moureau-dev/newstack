@@ -29,7 +29,7 @@ export class SayHelloAppender extends Newstack {
 
         <pre>{this.message}</pre>
 
-        <button type="button" onclick={() => this.onclick()}>
+        <button type="button" onclick={this.onclick}>
           Say Hello
         </button>
       </div>

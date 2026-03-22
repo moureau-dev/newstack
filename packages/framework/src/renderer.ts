@@ -220,7 +220,7 @@ export class Renderer {
       : this.html(props?.children);
 
     const attrs = Object.entries(props || {})
-      .filter(([key]) => !["route", "children"].includes(key))
+      .filter(([key]) => !["route", "children", "bind"].includes(key))
       .filter(([key, val]) => {
         const isFunc = typeof val === "function";
 
@@ -229,7 +229,21 @@ export class Renderer {
       .map(([key, val]) => ` ${key}="${val}"`)
       .join("");
 
-    return `<${type}${attrs}>${children}</${type}>`;
+    let bindAttr = "";
+    if (props?.bind && typeof props.bind === "object") {
+      const { object, property } = props.bind as {
+        object: Record<string, unknown>;
+        property: string;
+      };
+      const value = object[property];
+      if (props?.type === "checkbox") {
+        if (value) bindAttr = " checked";
+      } else {
+        bindAttr = ` value="${value ?? ""}"`;
+      }
+    }
+
+    return `<${type}${attrs}${bindAttr}>${children}</${type}>`;
   }
 
   /**
@@ -441,19 +455,28 @@ export class Renderer {
 function proxify(component: Newstack, renderer: Renderer): Newstack {
   const proxy = new Proxy(component, {
     get(target, key) {
-      // Automatically update the component when a property is accessed
-      // renderer.updateComponent(target);
+      const val = Reflect.get(target, key);
 
-      return Reflect.get(target, key);
+      // Intercept render() to stash the context in target.__ctx before every
+      // call. Event handlers produced by MethodBindTransform read this.__ctx
+      // so they receive the current context regardless of how the render
+      // parameter is named (or whether it's declared at all).
+      if (key === "render" && typeof val === "function") {
+        return (...args: unknown[]) => {
+          (target as any).__ctx = args[0];
+          return (val as (...a: unknown[]) => unknown).apply(proxy, args);
+        };
+      }
+
+      return val;
     },
     set(target, key, value) {
       target[key] = value;
 
-      // Automatically update the component when a property changes
-      // if (renderer.context.environment === "client") {
-      renderer.updateComponent(target);
+      // Pass proxy (not raw target) so render's `this` stays the proxy,
+      // which keeps bind.object pointing at the proxy for future oninput calls.
+      renderer.updateComponent(proxy);
       target.update?.(renderer.context);
-      // }
 
       return true;
     },
@@ -511,11 +534,34 @@ function patchElement(
     Object.entries(vnode.props).forEach(([key, val]) => {
       if (key.startsWith("on") && typeof val === "function") {
         oldEl[key] = (e: Event) => {
+          e.preventDefault();
           val(e);
           if (update) update();
         };
       }
     });
+  }
+
+  // Two-way binding: sync value from component and attach input handler
+  if (vnode?.props?.bind && typeof vnode.props.bind === "object") {
+    const { object, property } = vnode.props.bind as {
+      object: Record<string, unknown>;
+      property: string;
+    };
+    const el = oldEl as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    if (el.type === "checkbox") {
+      (el as HTMLInputElement).checked = Boolean(object[property]);
+      el.onchange = (e) => {
+        object[property] = (e.target as HTMLInputElement).checked;
+      };
+    } else {
+      el.value = String(object[property] ?? "");
+      el.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        object[property] =
+          target.type === "number" ? Number(target.value) : target.value;
+      };
+    }
   }
 
   for (let i = 0; i < len; i++) {
