@@ -173,6 +173,11 @@ export class Renderer {
       }
     }
 
+    // Plain function component — call it with props and render the result
+    if (typeof type === "function" && !(type as any).hash) {
+      return this.html((type as (p: unknown) => VNode)(props ?? {}));
+    }
+
     const isComponent = isComponentNode(node);
 
     // Rendering Newstack components
@@ -567,7 +572,7 @@ function patchElement(
   for (let i = 0; i < len; i++) {
     const oldChild = oldChildren[i];
     const newChild = newChildren[i];
-    const vchild = vnodeChildren[i];
+    const vchild = resolveFunctionVNode(vnodeChildren[i]);
 
     if (!oldChild && newChild) {
       oldEl.appendChild(newChild.cloneNode(true));
@@ -632,6 +637,20 @@ function matchRoute(
   });
 
   return true;
+}
+
+function resolveFunctionVNode(vnode: VNode): VNode {
+  if (
+    vnode &&
+    typeof vnode === "object" &&
+    typeof vnode.type === "function" &&
+    !(vnode.type as any).hash
+  ) {
+    return resolveFunctionVNode(
+      (vnode.type as (p: unknown) => VNode)(vnode.props ?? {}),
+    );
+  }
+  return vnode;
 }
 
 function isComponentNode(node: VNode): boolean {
