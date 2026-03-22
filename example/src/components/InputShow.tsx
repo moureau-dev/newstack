@@ -7,6 +7,7 @@ import Newstack from "newstack";
  */
 export class InputShow extends Newstack {
   inputValue: string;
+  nestedValue = { value: "" };
 
   render() {
     return (
@@ -14,8 +15,25 @@ export class InputShow extends Newstack {
         <h2 class="font-bold">Input Show</h2>
 
         <p>This component shows the input value.</p>
-        <input class="border p-2" type="text" bind={this.inputValue} />
-        <b>Current input: {this.inputValue}</b>
+        <div>
+          <label>
+            <span>Input:</span>
+            <input class="border p-2" type="text" bind={this.inputValue} />
+          </label>
+          <b>Current input: {this.inputValue}</b>
+        </div>
+
+        <div class="mt-4">
+          <label>
+            <span>Nested Input:</span>
+            <input
+              class="border p-2"
+              type="text"
+              bind={this.nestedValue.value}
+            />
+          </label>
+          <b>Current nested input: {this.nestedValue.value}</b>
+        </div>
       </div>
     );
   }

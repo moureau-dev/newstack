@@ -564,6 +564,7 @@ function patchElement(
       (el as HTMLInputElement).checked = Boolean(object[property]);
       el.onchange = (e) => {
         object[property] = (e.target as HTMLInputElement).checked;
+        update();
       };
     } else {
       el.value = String(object[property] ?? "");
@@ -571,6 +572,7 @@ function patchElement(
         const target = e.target as HTMLInputElement;
         object[property] =
           target.type === "number" ? Number(target.value) : target.value;
+        update();
       };
     }
   }
