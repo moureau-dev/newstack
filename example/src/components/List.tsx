@@ -30,7 +30,7 @@ export class List extends Newstack {
           ))}
         </ul>
 
-        <button type="button" onclick={() => this.addItem()}>
+        <button type="button" onclick={this.addItem}>
           Add Item
         </button>
       </div>
