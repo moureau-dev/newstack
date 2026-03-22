@@ -39,6 +39,7 @@ export class Renderer {
    */
   componentElements: Map<string, Element>;
   lastVNode: any;
+  private isUpdating = false;
 
   constructor(context: NewstackClientContext = {} as NewstackClientContext) {
     this.context = context;
@@ -178,7 +179,7 @@ export class Renderer {
     if (isComponent) {
       const { hash } = type as unknown as { hash: string };
       let { component, reinitiate } = this.components.get(hash);
-      if (this.context.environment === "client") {
+      if (this.context.environment === "client" && !this.isUpdating) {
         component = reinitiate();
 
         if (!this.lastVNode) {
@@ -299,8 +300,10 @@ export class Renderer {
     const container = this.componentElements.get(staticComponent.hash);
     if (!container) return;
 
+    this.isUpdating = true;
     const vnode = component.render(this.context);
     const html = this.html(vnode);
+    this.isUpdating = false;
 
     const temp = document.createElement("div");
     temp.innerHTML = html;

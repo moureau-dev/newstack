@@ -80,6 +80,24 @@ export function proxifyContext(
     },
   });
 
+  const settings = new Proxy({} as NonNullable<typeof ctx.settings>, {
+    get(_, prop) {
+      return Reflect.get(ctx.settings ?? {}, prop);
+    },
+    set(_, prop, value) {
+      if (!ctx.settings) ctx.settings = {};
+      ctx.settings[prop as string] = value;
+      if (client) {
+        client.renderer.components.forEach(({ component }, hash) => {
+          if (client.renderer.visibleHashes.has(hash)) {
+            client.renderer.updateComponent(component);
+          }
+        });
+      }
+      return true;
+    },
+  });
+
   return new Proxy(ctx, {
     get(target, prop) {
       if (!(prop in target)) {
@@ -93,6 +111,7 @@ export function proxifyContext(
         if (prop === "page") return page;
         if (prop === "router") return router;
         if (prop === "params") return params;
+        if (prop === "settings") return settings;
       }
 
       return value;

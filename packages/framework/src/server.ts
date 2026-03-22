@@ -1,6 +1,8 @@
+declare const __NEWSTACK_SETTINGS__: Record<string, string | number | boolean>;
+
 /* ---------- Internal ---------- */
 import { randomUUID } from "crypto";
-import { watch as watchFs } from "fs";
+import { watch as watchFs, readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { readFile, writeFile, mkdir, cp, access, readdir } from "fs/promises";
@@ -45,6 +47,47 @@ const mimeTypes: Record<string, string> = {
   ".otf": "font/otf",
   ".eot": "application/vnd.ms-fontobject",
 };
+
+function parseEnvFile(path: string): Record<string, string> {
+  try {
+    const result: Record<string, string> = {};
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      )
+        value = value.slice(1, -1);
+      result[key] = value;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function loadFromEnv(prefix: string): Record<string, string> {
+  const env = {
+    ...parseEnvFile(resolve(process.cwd(), ".env")),
+    ...parseEnvFile(resolve(process.cwd(), ".env.local")),
+    ...process.env,
+  };
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (!key.startsWith(prefix) || value === undefined) continue;
+    const camel = key
+      .slice(prefix.length)
+      .toLowerCase()
+      .replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    result[camel] = value;
+  }
+  return result;
+}
 
 const context = proxifyContext({
   environment: "server",
@@ -102,6 +145,8 @@ export class NewstackServer {
   constructor() {
     this.server = new Hono();
     context.deps = {};
+    context.secrets = loadFromEnv("NEWSTACK_SECRETS_");
+    context.settings = __NEWSTACK_SETTINGS__ ?? {};
 
     this.renderer = new Renderer(context as NewstackClientContext);
     this.setupRoutes();

@@ -2,6 +2,8 @@ import { proxifyContext } from "./context";
 import type { Newstack, NewstackClientContext } from "./core";
 import { Renderer } from "./renderer";
 
+declare const __NEWSTACK_SETTINGS__: NewstackClientContext["settings"];
+
 /**
  * @description
  * NewstackClient is a class that initializes and manages the Newstack application on the client side.
@@ -60,6 +62,7 @@ export class NewstackClient {
       page,
       router,
       params: {},
+      settings: __NEWSTACK_SETTINGS__ ?? {},
     };
 
     this.context = proxifyContext(ctx, this) as NewstackClientContext;

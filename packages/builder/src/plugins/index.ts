@@ -5,6 +5,7 @@ import { ReplaceStaticMethods } from "./static-methods";
 import { IgnoreCss } from "./ignore-css";
 export { Hasher, ReplaceStaticMethods, IgnoreCss };
 export * from "./split-bundle";
+export { EnvPlugin } from "./env";
 
 /**
  * @description

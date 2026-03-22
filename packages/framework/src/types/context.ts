@@ -31,8 +31,8 @@ export interface NewstackEnvironment {
 }
 
 export interface NewstackParams extends Record<string, string | boolean> {}
-export interface NewstackSettings extends Record<string, string | boolean> {}
-export interface NewstackSecrets extends Record<string, string | boolean> {}
+export interface NewstackSettings extends Record<string, string | number | boolean> {}
+export interface NewstackSecrets extends Record<string, string | number | boolean> {}
 export interface NewstackDependencies extends Record<string, any> {}
 
 // biome-ignore lint/suspicious/noEmptyInterface:

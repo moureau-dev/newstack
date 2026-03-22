@@ -25,7 +25,7 @@ export class Home extends Newstack {
   render({ router }: NewstackClientContext) {
     return (
       <div>
-        <h1>Welcome to Newstack! </h1>
+        <h1>Welcome to Newstack!</h1>
 
         <p class="text-2xl text-blue-500 font-bold">
           This is a Newstack Example!

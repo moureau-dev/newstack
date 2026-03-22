@@ -2,7 +2,7 @@ import type { BuildOptions } from "esbuild";
 import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 
-import { SplitBundle, NewstackPlugin } from "./plugins";
+import { SplitBundle, NewstackPlugin, EnvPlugin } from "./plugins";
 
 const jsxInjectPath = fileURLToPath(new URL("./jsx-shim.js", import.meta.url));
 
@@ -20,7 +20,7 @@ export const server: BuildOptions = {
   bundle: true,
   entryPoints: [serverEntry],
   outdir: "dist",
-  plugins: [NewstackPlugin("server")],
+  plugins: [NewstackPlugin("server"), EnvPlugin()],
   platform: "node",
   format: "esm",
   target: "es2020",
@@ -41,7 +41,7 @@ export const client: BuildOptions = {
   entryNames: "client",
   chunkNames: "client-[name]-[hash]",
   outdir: "dist",
-  plugins: [SplitBundle(), NewstackPlugin("client")],
+  plugins: [SplitBundle(), NewstackPlugin("client"), EnvPlugin()],
   platform: "browser",
   target: "esnext",
   format: "esm",
