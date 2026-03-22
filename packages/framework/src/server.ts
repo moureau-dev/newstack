@@ -2,10 +2,10 @@ declare const __NEWSTACK_SETTINGS__: Record<string, string | number | boolean>;
 
 /* ---------- Internal ---------- */
 import { randomUUID } from "crypto";
-import { watch as watchFs, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { readFile, writeFile, mkdir, cp, access, readdir } from "fs/promises";
+import { readFile } from "fs/promises";
 
 /* ---------- External ---------- */
 import { serve } from "@hono/node-server";
@@ -19,6 +19,9 @@ import type {
 } from "./core";
 import { Renderer } from "./renderer";
 import { proxifyContext } from "./context";
+import { HmrManager } from "./hmr";
+import { BuildManager } from "./build";
+import type { BuildOpts } from "./build";
 
 /* ---------- Constants ---------- */
 const __filename = fileURLToPath(import.meta.url);
@@ -136,11 +139,8 @@ export class NewstackServer {
    */
   private renderer: Renderer;
 
-  /**
-   * @description
-   * SSE send functions for connected HMR clients (dev mode only).
-   */
-  private hmrClients = new Set<(data: string) => void>();
+  private hmrManager: HmrManager;
+  private buildManager: BuildManager;
 
   constructor() {
     this.server = new Hono();
@@ -150,89 +150,15 @@ export class NewstackServer {
 
     this.renderer = new Renderer(context as NewstackClientContext);
     this.setupRoutes();
-  }
 
-  /**
-   * @description
-   * Broadcasts an HMR event to all connected browser clients.
-   */
-  private notifyHmr(data: object) {
-    const msg = JSON.stringify(data);
-    for (const send of this.hmrClients) {
-      try {
-        send(msg);
-      } catch {
-        this.hmrClients.delete(send);
-      }
-    }
-  }
-
-  /**
-   * @description
-   * Sets up the SSE /hmr route and watches dist/ for client file changes.
-   * Only called when NEWSTACK_WATCH=true.
-   */
-  private setupHmr() {
-    const self = this;
-    const serverStartTime = Date.now();
-
-    this.server.get("/hmr", (_c) => {
-      const encoder = new TextEncoder();
-      let clientSend: ((data: string) => void) | null = null;
-
-      const body = new ReadableStream({
-        start(controller) {
-          clientSend = (data: string) => {
-            try {
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-            } catch {
-              // connection already closed
-            }
-          };
-          self.hmrClients.add(clientSend);
-
-          // If this connection arrives more than 500ms after the server started,
-          // it's a browser reconnecting after a server restart — push a JS HMR
-          // update immediately so the client picks up changes without a full reload.
-          if (Date.now() - serverStartTime > 500) {
-            setTimeout(
-              () => clientSend?.(JSON.stringify({ type: "js" })),
-              50,
-            );
-          }
-        },
-        cancel() {
-          if (clientSend) self.hmrClients.delete(clientSend);
-        },
-      });
-
-      return new Response(body, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      });
-    });
-
-    // Debounced fs.watch on the dist directory
-    const distDir = resolve(__dirname);
-    const pending = new Set<string>();
-    let debounce: ReturnType<typeof setTimeout> | null = null;
-
-    watchFs(distDir, (_, filename) => {
-      if (!filename) return;
-      if (filename === "client.css") pending.add("css");
-      else if (filename.startsWith("client") && filename.endsWith(".js"))
-        pending.add("js");
-      else return;
-
-      if (debounce) clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        for (const type of pending) self.notifyHmr({ type });
-        pending.clear();
-        debounce = null;
-      }, 100);
+    this.hmrManager = new HmrManager(this.server, resolve(__dirname));
+    this.buildManager = new BuildManager({
+      renderer: this.renderer,
+      context: context as NewstackServerContext & NewstackClientContext,
+      distDir: __dirname,
+      fingerprint: hash,
+      template: () => this.template(),
+      templateStatic: () => this.templateStatic(),
     });
   }
 
@@ -398,36 +324,7 @@ export class NewstackServer {
     await this.prepare();
     const page = this.renderer.html(element);
 
-    const hmrScript =
-      process.env.NEWSTACK_WATCH === "true"
-        ? `<script type="module">
-    async function doJsHmr() {
-      await import('/client.js?t=' + Date.now());
-      if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
-        window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
-        window.__NEWSTACK_PENDING = null;
-      }
-    }
-
-    function connectHmr() {
-      const es = new EventSource('/hmr');
-      es.onmessage = async (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'css') {
-          const link = document.querySelector('link[rel="stylesheet"]');
-          if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
-        } else if (msg.type === 'js') {
-          await doJsHmr();
-        }
-      };
-      es.onerror = () => {
-        es.close();
-        setTimeout(connectHmr, 1000);
-      };
-    }
-    connectHmr();
-  </script>`
-        : "";
+    const hmrScript = this.hmrManager.clientInjection();
 
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
@@ -520,30 +417,37 @@ export class NewstackServer {
     context.deps = opts?.deps ?? {};
 
     if (process.env.NEWSTACK_SSG === "true") {
-      this.build(app, opts).then(() => process.exit(0)).catch((err) => {
-        console.error(err);
-        process.exit(1);
-      });
+      this.build(app, opts)
+        .then(() => process.exit(0))
+        .catch((err) => {
+          console.error(err);
+          process.exit(1);
+        });
       return this.server;
     }
 
     if (process.env.NEWSTACK_SPA === "true") {
-      this.buildSpa(opts).then(() => process.exit(0)).catch((err) => {
-        console.error(err);
-        process.exit(1);
-      });
+      this.buildManager
+        .buildSpa(opts)
+        .then(() => process.exit(0))
+        .catch((err) => {
+          console.error(err);
+          process.exit(1);
+        });
       return this.server;
     }
 
     if (process.env.NEWSTACK_SPA_DEV === "true") {
       this.setupSpaRoutes();
       serve(this.server, ({ port }) => {
-        console.log(`Newstack SPA server is running on http://localhost:${port} 🚀`);
+        console.log(
+          `Newstack SPA server is running on http://localhost:${port} 🚀`,
+        );
       });
       return this.server;
     }
 
-    if (process.env.NEWSTACK_WATCH === "true") this.setupHmr();
+    if (process.env.NEWSTACK_WATCH === "true") this.hmrManager.setup();
 
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
@@ -555,220 +459,10 @@ export class NewstackServer {
     return this.server;
   }
 
-  /**
-   * @description
-   * Builds static site generation (SSG) output by crawling all routes and links.
-   * This method renders all discoverable pages to static HTML files.
-   *
-   * @param app The Newstack application instance to build.
-   * @param opts Optional configuration including:
-   *   - outDir: Output directory for static files
-   *   - deps: Dependencies to inject into context
-   *   - dynamicRoutes: Array of concrete paths for dynamic routes (e.g., ["/profile/1", "/profile/2"])
-   *   - getStaticPaths: Async function that returns paths for dynamic routes
-   *   - hydrate: If true, includes client.js for hydration/interactivity (default: true)
-   * @returns Promise that resolves when the build is complete.
-   */
-  async build(
-    app: Newstack,
-    opts?: {
-      outDir?: string;
-      deps?: Record<string, any>;
-      dynamicRoutes?: string[];
-      getStaticPaths?: () => Promise<string[]> | string[];
-      hydrate?: boolean;
-    },
-  ): Promise<void> {
-    this.app = app;
-    context.deps = opts?.deps ?? {};
-    this.renderer.setupAllComponents(this.app);
-
-    const outDir = opts?.outDir || "dist/ssg";
-    const shouldHydrate = opts?.hydrate ?? true;
-    const visitedPaths = new Set<string>();
-    const pathsToVisit: string[] = ["/"];
-
-    // Discover all routes from components first
-    const discoveredRoutes = this.discoverRoutes();
-    const dynamicRoutePatterns = discoveredRoutes.filter((r) =>
-      r.includes(":"),
-    );
-
-    // Collect dynamic route paths from multiple sources
-    const dynamicRoutePaths = new Set<string>();
-
-    // Add manually specified routes (if they match a pattern)
-    for (const path of opts?.dynamicRoutes || []) {
-      if (
-        dynamicRoutePatterns.some((pattern) =>
-          this.matchesRoutePattern(path, pattern),
-        )
-      ) {
-        dynamicRoutePaths.add(path);
-      }
-    }
-
-    // Call getStaticPaths if provided (only add paths that match patterns)
-    if (opts?.getStaticPaths) {
-      const paths = await opts.getStaticPaths();
-      for (const path of paths) {
-        if (
-          dynamicRoutePatterns.some((pattern) =>
-            this.matchesRoutePattern(path, pattern),
-          )
-        ) {
-          dynamicRoutePaths.add(path);
-        }
-      }
-    }
-
-    // Add discovered routes to paths to visit
-    for (const route of discoveredRoutes) {
-      if (!route.includes(":")) {
-        // Only add static routes
-        pathsToVisit.push(route);
-      }
-    }
-
-    console.log("Starting SSG build...");
-    console.log("Discovered routes:", discoveredRoutes);
-
-    // Create output directory
-    await mkdir(outDir, { recursive: true });
-
-    // Crawl and render all paths
-    while (pathsToVisit.length > 0) {
-      const path = pathsToVisit.shift();
-      if (visitedPaths.has(path)) continue;
-
-      visitedPaths.add(path);
-      console.log(`Rendering: ${path}`);
-
-      // Set the path in context
-      context.path = path;
-      context.router.path = path;
-
-      // Generate HTML for this path (will execute server functions during render)
-      const html = shouldHydrate
-        ? await this.template()
-        : await this.templateStatic();
-
-      // Extract links from the HTML
-      const links = this.extractLinks(html);
-      for (const link of links) {
-        if (!visitedPaths.has(link) && !pathsToVisit.includes(link)) {
-          // Check if this link matches any defined route (static or dynamic)
-          const matchesStaticRoute = discoveredRoutes.some(
-            (r) => !r.includes(":") && r === link,
-          );
-          const matchesDynamicRoute = dynamicRoutePatterns.some((pattern) =>
-            this.matchesRoutePattern(link, pattern),
-          );
-
-          // Only add links that match defined routes
-          if (matchesStaticRoute || matchesDynamicRoute) {
-            if (matchesDynamicRoute) {
-              dynamicRoutePaths.add(link);
-            }
-            pathsToVisit.push(link);
-          }
-        }
-      }
-
-      // Write HTML file
-      await this.writeHtmlFiles(path, outDir, html);
-    }
-
-    // Render any manually configured dynamic routes that weren't discovered
-    for (const dynamicPath of dynamicRoutePaths) {
-      if (visitedPaths.has(dynamicPath)) continue;
-
-      visitedPaths.add(dynamicPath);
-      console.log(`Rendering dynamic: ${dynamicPath}`);
-
-      context.path = dynamicPath;
-      context.router.path = dynamicPath;
-
-      const html = shouldHydrate
-        ? await this.template()
-        : await this.templateStatic();
-      await this.writeHtmlFiles(dynamicPath, outDir, html);
-    }
-
-    // Copy all client-generated files if hydration is enabled
-    if (shouldHydrate) {
-      await this.copyClientFiles(outDir);
-    }
-
-    // Copy public directory if it exists
-    await this.copyPublicDirectory(outDir);
-
-    console.log("\nSSG build complete!");
-    console.log(`Generated ${visitedPaths.size} pages in ${outDir}`);
-    console.log("Pages:", Array.from(visitedPaths));
+  async build(app: Newstack, opts?: BuildOpts): Promise<void> {
+    return this.buildManager.build(app, opts);
   }
 
-  /**
-   * @description
-   * Builds a static SPA shell: a minimal index.html with no SSR content,
-   * plus client.js and client.css. The client handles all rendering and routing.
-   *
-   * @param opts Optional configuration including outDir.
-   */
-  /**
-   * @description
-   * Copies all client-generated files (client.js, client.css, and any split chunks)
-   * from the dist directory to the output directory.
-   *
-   * @param outDir The output directory to copy files into.
-   */
-  private async copyClientFiles(outDir: string): Promise<void> {
-    const distDir = resolve(__dirname);
-    const entries = await readdir(distDir);
-    const clientFiles = entries.filter((f) => f.startsWith("client"));
-
-    for (const file of clientFiles) {
-      const content = await readFile(join(distDir, file), "utf-8");
-      await writeFile(join(outDir, file), content, "utf-8");
-      console.log(`Copied ${file}`);
-    }
-  }
-
-  private async buildSpa(opts?: { outDir?: string; deps?: Record<string, any> }): Promise<void> {
-    const outDir = opts?.outDir || "dist/spa";
-    await mkdir(outDir, { recursive: true });
-
-    await this.copyClientFiles(outDir);
-
-    const cssLink = (await readdir(resolve(__dirname))).some((f) => f === "client.css")
-      ? `<link rel="stylesheet" href="/client.css?fingerprint=${hash}">`
-      : "";
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="module" src="/client.js?fingerprint=${hash}"></script>
-    ${cssLink}
-  </head>
-  <body>
-    <div id="app"></div>
-  </body>
-</html>`;
-
-    await writeFile(join(outDir, "index.html"), html, "utf-8");
-    await this.copyPublicDirectory(outDir);
-
-    console.log("SPA build complete!");
-    console.log(`Output: ${outDir}`);
-  }
-
-  /**
-   * @description
-   * Sets up routes for SPA dev server mode.
-   * All routes return the same minimal HTML shell; the client handles routing.
-   */
   private setupSpaRoutes(): void {
     this.server.get("*", async (c) => {
       const { path } = c.req;
@@ -785,7 +479,11 @@ export class NewstackServer {
 
       let cssLink = "";
       if (!files.has("client.css")) {
-        try { await loaders["client.css"](); } catch { /* no css */ }
+        try {
+          await loaders["client.css"]();
+        } catch {
+          /* no css */
+        }
       }
       if (files.has("client.css")) {
         cssLink = `<link rel="stylesheet" href="/client.css?fingerprint=${hash}">`;
@@ -804,157 +502,6 @@ export class NewstackServer {
   </body>
 </html>`);
     });
-  }
-
-  /**
-   * @description
-   * Copies the public directory to the SSG output directory.
-   * This includes all static assets like images, fonts, etc.
-   *
-   * @param outDir The output directory for SSG build.
-   */
-  private async copyPublicDirectory(outDir: string): Promise<void> {
-    // Look for public directory in the current working directory
-    const publicDir = resolve(process.cwd(), "public");
-
-    try {
-      await access(publicDir);
-      console.log("Copying public directory...");
-      await cp(publicDir, outDir, { recursive: true });
-      console.log("Public directory copied successfully");
-    } catch {
-      // Public directory doesn't exist, skip
-      console.log("No public directory found, skipping...");
-    }
-  }
-
-  /**
-   * @description
-   * Discovers all routes defined in the application components by traversing
-   * the component tree and collecting route props.
-   *
-   * @returns Array of route patterns found in the application.
-   */
-  private discoverRoutes(): string[] {
-    const routes: string[] = [];
-
-    const traverseVNode = (vnode: any) => {
-      if (!vnode || typeof vnode !== "object") return;
-
-      const { props } = vnode;
-      if (props?.route && props.route !== "*") {
-        routes.push(props.route);
-      }
-
-      if (Array.isArray(props?.children)) {
-        for (const child of props.children) {
-          traverseVNode(child);
-        }
-      } else if (props?.children) {
-        traverseVNode(props.children);
-      }
-    };
-
-    // Render the app to discover routes
-    const vnode = this.app.render(context as NewstackClientContext);
-    traverseVNode(vnode);
-
-    return routes;
-  }
-
-  /**
-   * @description
-   * Extracts all internal links (href attributes) from the rendered HTML.
-   *
-   * @param html The HTML string to extract links from.
-   * @returns Array of internal link paths.
-   */
-  private extractLinks(html: string): string[] {
-    const links: string[] = [];
-    const hrefRegex = /href=["']([^"']+)["']/g;
-
-    let match = hrefRegex.exec(html);
-    while (match !== null) {
-      const href = match[1];
-
-      // Only include internal links (starting with /)
-      if (href.startsWith("/") && !href.startsWith("//")) {
-        // Remove query params and hash
-        const cleanPath = href.split("?")[0].split("#")[0];
-        if (cleanPath && !cleanPath.includes(".")) {
-          links.push(cleanPath);
-        }
-      }
-
-      match = hrefRegex.exec(html);
-    }
-
-    return [...new Set(links)]; // Remove duplicates
-  }
-
-  /**
-   * @description
-   * Converts a URL path to a file system path for SSG output.
-   *
-   * @param path The URL path (e.g., "/about").
-   * @param outDir The output directory.
-   * @returns The file system path where the HTML should be written.
-   */
-  /**
-   * @description
-   * Writes HTML to both the flat file path ([name].html) and the directory
-   * path ([name]/index.html) so both URL styles resolve correctly.
-   *
-   * @param path The URL path (e.g., "/about").
-   * @param outDir The output directory.
-   * @param html The HTML content to write.
-   */
-  private async writeHtmlFiles(path: string, outDir: string, html: string): Promise<void> {
-    if (path === "/") {
-      await writeFile(join(outDir, "index.html"), html, "utf-8");
-      return;
-    }
-
-    const cleanPath = path.replace(/^\//, "");
-
-    // Flat: /about.html
-    const flatPath = join(outDir, `${cleanPath}.html`);
-    await mkdir(dirname(flatPath), { recursive: true });
-    await writeFile(flatPath, html, "utf-8");
-
-    // Directory: /about/index.html
-    const dirPath = join(outDir, cleanPath, "index.html");
-    await mkdir(dirname(dirPath), { recursive: true });
-    await writeFile(dirPath, html, "utf-8");
-  }
-
-  /**
-   * @description
-   * Checks if a concrete path matches a route pattern with parameters.
-   * For example, "/profile/123" matches "/profile/:id"
-   *
-   * @param path The concrete path (e.g., "/profile/123")
-   * @param pattern The route pattern (e.g., "/profile/:id")
-   * @returns True if the path matches the pattern
-   */
-  private matchesRoutePattern(path: string, pattern: string): boolean {
-    const pathSegments = path.split("/").filter(Boolean);
-    const patternSegments = pattern.split("/").filter(Boolean);
-
-    if (pathSegments.length !== patternSegments.length) return false;
-
-    for (let i = 0; i < patternSegments.length; i++) {
-      const patternSegment = patternSegments[i];
-      const pathSegment = pathSegments[i];
-
-      // If pattern segment is a parameter, it matches any value
-      if (patternSegment.startsWith(":")) continue;
-
-      // Otherwise, segments must match exactly
-      if (patternSegment !== pathSegment) return false;
-    }
-
-    return true;
   }
 }
 
