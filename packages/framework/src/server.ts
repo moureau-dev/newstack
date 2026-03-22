@@ -174,6 +174,7 @@ export class NewstackServer {
    */
   private setupHmr() {
     const self = this;
+    const serverStartTime = Date.now();
 
     this.server.get("/hmr", (_c) => {
       const encoder = new TextEncoder();
@@ -189,6 +190,16 @@ export class NewstackServer {
             }
           };
           self.hmrClients.add(clientSend);
+
+          // If this connection arrives more than 500ms after the server started,
+          // it's a browser reconnecting after a server restart — push a JS HMR
+          // update immediately so the client picks up changes without a full reload.
+          if (Date.now() - serverStartTime > 500) {
+            setTimeout(
+              () => clientSend?.(JSON.stringify({ type: "js" })),
+              50,
+            );
+          }
         },
         cancel() {
           if (clientSend) self.hmrClients.delete(clientSend);
@@ -390,6 +401,14 @@ export class NewstackServer {
     const hmrScript =
       process.env.NEWSTACK_WATCH === "true"
         ? `<script type="module">
+    async function doJsHmr() {
+      await import('/client.js?t=' + Date.now());
+      if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
+        window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
+        window.__NEWSTACK_PENDING = null;
+      }
+    }
+
     function connectHmr() {
       const es = new EventSource('/hmr');
       es.onmessage = async (e) => {
@@ -398,16 +417,12 @@ export class NewstackServer {
           const link = document.querySelector('link[rel="stylesheet"]');
           if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
         } else if (msg.type === 'js') {
-          await import('/client.js?t=' + Date.now());
-          if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
-            window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
-            window.__NEWSTACK_PENDING = null;
-          }
+          await doJsHmr();
         }
       };
       es.onerror = () => {
         es.close();
-        setTimeout(() => window.location.reload(), 1000);
+        setTimeout(connectHmr, 1000);
       };
     }
     connectHmr();
