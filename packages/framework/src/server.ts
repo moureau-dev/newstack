@@ -1,5 +1,6 @@
 /* ---------- Internal ---------- */
 import { randomUUID } from "crypto";
+import { watch as watchFs } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { readFile, writeFile, mkdir, cp, access, readdir } from "fs/promises";
@@ -92,12 +93,91 @@ export class NewstackServer {
    */
   private renderer: Renderer;
 
+  /**
+   * @description
+   * SSE send functions for connected HMR clients (dev mode only).
+   */
+  private hmrClients = new Set<(data: string) => void>();
+
   constructor() {
     this.server = new Hono();
     context.deps = {};
 
     this.renderer = new Renderer(context as NewstackClientContext);
     this.setupRoutes();
+  }
+
+  /**
+   * @description
+   * Broadcasts an HMR event to all connected browser clients.
+   */
+  private notifyHmr(data: object) {
+    const msg = JSON.stringify(data);
+    for (const send of this.hmrClients) {
+      try {
+        send(msg);
+      } catch {
+        this.hmrClients.delete(send);
+      }
+    }
+  }
+
+  /**
+   * @description
+   * Sets up the SSE /hmr route and watches dist/ for client file changes.
+   * Only called when NEWSTACK_WATCH=true.
+   */
+  private setupHmr() {
+    const self = this;
+
+    this.server.get("/hmr", (_c) => {
+      const encoder = new TextEncoder();
+      let clientSend: ((data: string) => void) | null = null;
+
+      const body = new ReadableStream({
+        start(controller) {
+          clientSend = (data: string) => {
+            try {
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            } catch {
+              // connection already closed
+            }
+          };
+          self.hmrClients.add(clientSend);
+        },
+        cancel() {
+          if (clientSend) self.hmrClients.delete(clientSend);
+        },
+      });
+
+      return new Response(body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    });
+
+    // Debounced fs.watch on the dist directory
+    const distDir = resolve(__dirname);
+    const pending = new Set<string>();
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
+    watchFs(distDir, (_, filename) => {
+      if (!filename) return;
+      if (filename === "client.css") pending.add("css");
+      else if (filename.startsWith("client") && filename.endsWith(".js"))
+        pending.add("js");
+      else return;
+
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        for (const type of pending) self.notifyHmr({ type });
+        pending.clear();
+        debounce = null;
+      }, 100);
+    });
   }
 
   /**
@@ -254,6 +334,26 @@ export class NewstackServer {
     await this.prepare();
     const page = this.renderer.html(element);
 
+    const hmrScript =
+      process.env.NEWSTACK_WATCH === "true"
+        ? `<script type="module">
+    const es = new EventSource('/hmr');
+    es.onmessage = async (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'css') {
+        const link = document.querySelector('link[rel="stylesheet"]');
+        if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
+      } else if (msg.type === 'js') {
+        await import('/client.js?t=' + Date.now());
+        if (window.__NEWSTACK && window.__NEWSTACK_PENDING) {
+          window.__NEWSTACK.renderer.hmrUpdate(window.__NEWSTACK_PENDING);
+          window.__NEWSTACK_PENDING = null;
+        }
+      }
+    };
+  </script>`
+        : "";
+
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
         Array.from(this.renderer.components.entries())
@@ -282,6 +382,7 @@ export class NewstackServer {
       	    <script type="module" src="/client.js?fingerprint=${hash}"></script>
             <link rel="stylesheet" href="/client.css?fingerprint=${hash}"></link>
             <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
+            ${hmrScript}
         </head>
 
         <body>
@@ -366,6 +467,8 @@ export class NewstackServer {
       });
       return this.server;
     }
+
+    if (process.env.NEWSTACK_WATCH === "true") this.setupHmr();
 
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);

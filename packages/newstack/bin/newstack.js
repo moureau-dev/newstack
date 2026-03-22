@@ -39,7 +39,8 @@ switch (command) {
 
   case "start": {
     const mode = flags.mode || "ssr";
-    build(mode === "spa" ? runSpaDev : run);
+    if (mode === "spa") build(runSpaDev);
+    else buildWatch(runWatch);
     break;
   }
 
@@ -88,16 +89,75 @@ function build(onComplete) {
   });
 }
 
-function run() {
+/**
+ * Runs esbuild.config.ts in watch mode (NEWSTACK_WATCH=true).
+ * Waits for the sentinel "__NEWSTACK_WATCH_READY__" on stdout before
+ * calling onReady(), which starts the dev server. Installs SIGINT/SIGTERM
+ * handlers so both the config runner and server process are cleaned up.
+ */
+function buildWatch(onReady) {
+  const configPath = resolve(process.cwd(), "esbuild.config.ts");
+
+  const esbuild = spawn(
+    "esbuild",
+    ["--bundle", "--platform=node", "--format=esm", "--packages=external", configPath],
+    { stdio: ["inherit", "pipe", "inherit"], cwd: process.cwd() },
+  );
+
+  const configRunner = spawn("node", [], {
+    stdio: ["pipe", "pipe", "inherit"],
+    cwd: process.cwd(),
+    env: { ...process.env, NEWSTACK_WATCH: "true" },
+  });
+
+  esbuild.stdout.pipe(configRunner.stdin);
+
+  let serverProcess = null;
+  let started = false;
+
+  configRunner.stdout.on("data", (chunk) => {
+    const text = chunk.toString();
+    // Forward everything except the internal sentinel line
+    const visible = text.replace("__NEWSTACK_WATCH_READY__\n", "");
+    if (visible) process.stdout.write(visible);
+
+    if (!started && text.includes("__NEWSTACK_WATCH_READY__")) {
+      started = true;
+      serverProcess = onReady();
+    }
+  });
+
+  const cleanup = () => {
+    configRunner.kill("SIGTERM");
+    if (serverProcess) serverProcess.kill("SIGTERM");
+    process.exit(0);
+  };
+
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+
+  configRunner.on("exit", (code) => {
+    if (code && code !== 0) {
+      if (serverProcess) serverProcess.kill("SIGTERM");
+      process.exit(code);
+    }
+  });
+
+  esbuild.on("error", (err) => {
+    console.error("Failed to start esbuild:", err);
+    process.exit(1);
+  });
+}
+
+function runWatch() {
   const serverPath = resolve(process.cwd(), "dist/server.js");
   const node = spawn("node", [serverPath], {
     stdio: "inherit",
     cwd: process.cwd(),
+    env: { ...process.env, NEWSTACK_WATCH: "true" },
   });
-
-  node.on("close", (code) => {
-    process.exit(code || 0);
-  });
+  // Don't exit the CLI when the server exits in watch mode — let cleanup() handle it
+  return node;
 }
 
 function runSsg() {

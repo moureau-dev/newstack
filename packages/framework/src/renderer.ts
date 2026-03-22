@@ -1,7 +1,7 @@
-import { Newstack, type NewstackClientContext } from "./core";
+import type { Newstack, NewstackClientContext } from "./core";
 
 type VNode = {
-  type: string | Function;
+  type: string | ((...args: unknown[]) => unknown);
   props?: Record<string, unknown> & {
     route?: string;
     children?: VNode | VNode[];
@@ -48,6 +48,80 @@ export class Renderer {
 
   get hashes(): string[] {
     return Array.from(this.components.keys());
+  }
+
+  /**
+   * @description
+   * Performs a hot module replacement update by swapping the prototype of each
+   * live component instance to the corresponding class from the newly imported
+   * bundle, then re-renders all visible components in place.
+   *
+   * State stored on instances is preserved; only methods/render are updated.
+   *
+   * @param newApp The newly-imported application instance (from re-imported bundle).
+   */
+  hmrUpdate(newApp: Newstack) {
+    // Collect new class constructors by traversing the new app's vnode tree
+    const newClasses = new Map<string, typeof Newstack>();
+
+    // Include the application entrypoint class itself
+    const appHash = (newApp.constructor as any).hash as string;
+    if (appHash)
+      newClasses.set(appHash, newApp.constructor as unknown as typeof Newstack);
+
+    const traverse = (vnode: VNode) => {
+      if (!vnode || typeof vnode !== "object") return;
+      const { type, props } = vnode;
+
+      // Duck-type on .hash instead of instanceof — the re-imported bundle
+      // brings a different Newstack class reference (different module URL),
+      // so instanceof would fail intermittently when the shared chunk is
+      // rebuilt and no longer cached under the same URL.
+      if (typeof type === "function" && (type as any).hash) {
+        const hash = (type as any).hash as string;
+        newClasses.set(hash, type as unknown as typeof Newstack);
+        const inst = new (type as any)();
+        if (isRenderableComponent(inst)) {
+          traverse(inst.render(this.context));
+        }
+      }
+
+      if (Array.isArray(props?.children)) {
+        for (const child of props.children) traverse(child);
+      } else if (props?.children) {
+        traverse(props.children as VNode);
+      }
+    };
+
+    if (isRenderableComponent(newApp)) {
+      traverse(newApp.render(this.context));
+    }
+
+    // Swap prototypes and update reinitiate closures
+    for (const [hash, entry] of this.components) {
+      const NewClass = newClasses.get(hash);
+      if (!NewClass) continue;
+
+      // Object.setPrototypeOf propagates through the proxy chain (no
+      // setPrototypeOf trap defined in either Newstack or proxify proxies),
+      // ultimately updating the raw instance's prototype.
+      Object.setPrototypeOf(entry.component, NewClass.prototype);
+
+      // Update reinitiate so future route re-renders use the new class
+      entry.reinitiate = () => {
+        const c = proxify(
+          new (NewClass as unknown as new () => Newstack)(),
+          this,
+        );
+        this.components.get(hash).component = c;
+        return c;
+      };
+
+      // Re-render visible components immediately
+      if (this.visibleHashes.has(hash)) {
+        this.updateComponent(entry.component);
+      }
+    }
   }
 
   /**
@@ -171,11 +245,11 @@ export class Renderer {
     states: Record<string, { state: unknown }>,
   ) {
     const { hash } = component.constructor as typeof Newstack;
-    const { state } = states[hash];
+    const entry = states[hash];
 
-    if (!state) return;
+    if (!entry?.state) return;
 
-    for (const [key, value] of Object.entries(state)) {
+    for (const [key, value] of Object.entries(entry.state)) {
       this.components.get(hash).component[key] = value;
     }
   }
@@ -512,8 +586,14 @@ function matchRoute(
 }
 
 function isComponentNode(node: VNode): boolean {
+  // Duck-type on the static `.hash` property rather than using instanceof.
+  // After an HMR re-import the new bundle carries a different Newstack class
+  // reference (different module URL), so instanceof fails intermittently.
+  // Every Newstack component gets a string `.hash` from NewstackPlugin, which
+  // is a reliable and cross-bundle-safe identifier.
   return (
-    typeof node.type === "function" && node.type.prototype instanceof Newstack
+    typeof node.type === "function" &&
+    typeof (node.type as any).hash === "string"
   );
 }
 

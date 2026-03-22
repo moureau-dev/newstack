@@ -76,12 +76,24 @@ export class NewstackClient {
    * @param app The Newstack application instance to start on the client side.
    */
   start(app: Newstack) {
+    // HMR: when the bundle is re-imported after a JS change, a second
+    // NewstackClient().start() call is triggered. Detect this and stash
+    // the new app so hmrUpdate() can swap prototypes without re-initialising.
+    if (typeof window !== "undefined" && (window as any).__NEWSTACK) {
+      (window as any).__NEWSTACK_PENDING = app;
+      return;
+    }
+
     this.app = app;
     this.renderer.setupAllComponents(this.app);
 
     this.app.prepare?.(this.context);
     this.renderRoute(location.pathname);
     this.app.hydrate?.(this.context);
+
+    if (typeof window !== "undefined") {
+      (window as any).__NEWSTACK = this;
+    }
   }
 
   /**
