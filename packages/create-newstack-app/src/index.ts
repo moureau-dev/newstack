@@ -34,8 +34,6 @@ async function createApp() {
     },
     dependencies: {
       "@moureau/newstack": "latest",
-      esbuild: "^0.25.5",
-      "@swc/core": "^1.15.2",
       ...(withTailwind && {
         tailwindcss: "^4",
         "esbuild-plugin-tailwindcss": "^2",

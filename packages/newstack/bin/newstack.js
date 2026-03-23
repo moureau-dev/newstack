@@ -87,15 +87,11 @@ async function buildOnce() {
   const config = await loadConfig();
 
   console.time("Time taken");
-  console.log("Building server...");
-  const serverCtx = await esbuildContext(config.server);
-  await serverCtx.rebuild();
-  await serverCtx.dispose();
-
-  console.log("Building client...");
-  const clientCtx = await esbuildContext(config.client);
-  await clientCtx.rebuild();
-  await clientCtx.dispose();
+  console.log("Building server and client...");
+  await Promise.all([
+    esbuildBuild(config.server),
+    esbuildBuild(config.client),
+  ]);
 
   console.log("Build completed successfully!");
   console.timeEnd("Time taken");
