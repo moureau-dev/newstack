@@ -1,6 +1,6 @@
 {
   "name": "create-newstack-app",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "Scaffold a new Newstack application",
   "type": "module",
   "files": ["dist"],
@@ -9,7 +9,7 @@
   },
   "main": "./dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --minify --target=node20 --outfile=dist/index.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --minify --target=node20 --outfile=dist/index.js && cp src/newstack.md dist/newstack.md",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
