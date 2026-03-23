@@ -231,7 +231,7 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
   if (replacements.length > 0) {
     // Check if @newstack/framework is already imported
     const frameworkImportRegex =
-      /import\s+([^;]+)\s+from\s+["'](newstack|@newstack\/framework)["'];?/;
+      /import\s+([^;]+)\s+from\s+["'](@moureau\/newstack|newstack|@newstack\/framework)["'];?/;
     const hasFrameworkImport = frameworkImportRegex.test(result);
 
     if (!hasFrameworkImport) {

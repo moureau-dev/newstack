@@ -1,6 +1,6 @@
 {
   "name": "@moureau/newstack",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "files": ["dist", "bin"],
@@ -9,19 +9,10 @@
   },
   "main": "./dist/index.js",
   "exports": {
-    ".": { "types": "./src/index.ts", "source": "./src/index.ts", "default": "./dist/index.js" },
-    "./server": { "types": "./src/server.ts", "source": "./src/server.ts", "default": "./dist/server.js" },
-    "./builder": { "types": "./src/builder.ts", "source": "./src/builder.ts", "default": "./dist/builder.js" },
-    "./esbuild": { "types": "./src/esbuild.ts", "source": "./src/esbuild.ts", "default": "./dist/esbuild.js" }
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "exports": {
-      ".": { "types": "./dist/index.d.ts", "source": "./dist/index.js", "default": "./dist/index.js" },
-      "./server": { "types": "./dist/server.d.ts", "source": "./dist/server.js", "default": "./dist/server.js" },
-      "./builder": { "types": "./dist/builder.d.ts", "source": "./dist/builder.js", "default": "./dist/builder.js" },
-      "./esbuild": { "types": "./dist/esbuild.d.ts", "source": "./dist/esbuild.js", "default": "./dist/esbuild.js" }
-    }
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" },
+    "./builder": { "types": "./dist/builder.d.ts", "default": "./dist/builder.js" },
+    "./esbuild": { "types": "./dist/esbuild.d.ts", "default": "./dist/esbuild.js" }
   },
   "scripts": {
     "build:js": "esbuild src/index.ts src/server.ts src/builder.ts src/esbuild.ts --bundle --platform=node --format=esm --external:esbuild --external:@swc/core --outdir=dist --minify --splitting && esbuild src/jsx-shim.js --bundle --format=esm --outfile=dist/jsx-shim.js",

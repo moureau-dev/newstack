@@ -1,4 +1,4 @@
-import { builder } from "newstack/builder";
+import { builder } from "@moureau/newstack/builder";
 import tailwindPlugin from "esbuild-plugin-tailwindcss";
 
 export default {

@@ -59,7 +59,7 @@
     },
     "packages/newstack": {
       "name": "@moureau/newstack",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "bin": {
         "newstack": "./bin/newstack.js",
       },
