@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack from "newstack";
+import Newstack from "@moureau/newstack";
 import "./styles.css";
 
 /* ---------- Pages ---------- */

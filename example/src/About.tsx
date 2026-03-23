@@ -1,5 +1,5 @@
 /* ---------- Internal ---------- */
-import Newstack, { type NewstackClientContext } from "newstack";
+import Newstack, { type NewstackClientContext } from "@moureau/newstack";
 
 class ServerFunctions extends Newstack {
   /**

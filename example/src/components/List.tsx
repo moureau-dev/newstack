@@ -1,4 +1,4 @@
-import Newstack from "newstack";
+import Newstack from "@moureau/newstack";
 
 /**
  * @description

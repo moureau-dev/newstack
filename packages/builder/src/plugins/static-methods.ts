@@ -236,7 +236,7 @@ export async function ReplaceStaticMethods(args: OnLoadArgs, code: string) {
 
     if (!hasFrameworkImport) {
       // No existing import, add a new one
-      result = `import { runtime } from "newstack";\n${result}`;
+      result = `import { runtime } from "@moureau/newstack";\n${result}`;
     } else {
       // Add runtime to existing import if not already there
       result = result.replace(

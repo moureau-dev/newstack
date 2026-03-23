@@ -33,7 +33,7 @@ async function createApp() {
       build: "newstack build",
     },
     dependencies: {
-      newstack: "^0.0.1",
+      "@moureau/newstack": "^0.0.1",
       esbuild: "^0.25.5",
       "@swc/core": "^1.15.2",
       ...(withTailwind && {
@@ -83,19 +83,19 @@ A new Newstack application.
 Install dependencies:
 
 \`\`\`bash
-npm install
+bun install
 \`\`\`
 
 Run the development server:
 
 \`\`\`bash
-npm start
+bun start
 \`\`\`
 
 Build for production:
 
 \`\`\`bash
-npm run build
+bun run build
 \`\`\`
 
 ## Learn More
@@ -116,7 +116,7 @@ dist/
 
   // Create server.ts
   const serverTs = `/* ---------- External ---------- */
-import { NewstackServer } from "newstack/server";
+import { NewstackServer } from "@moureau/newstack/server";
 
 /* ---------- Entrypoint ---------- */
 import { Application } from "./src/Application";
@@ -130,7 +130,7 @@ server.start(app);
 
   // Create client.ts
   const clientTs = `/* ---------- External ---------- */
-import { NewstackClient } from "newstack";
+import { NewstackClient } from "@moureau/newstack";
 
 /* ---------- Entrypoint ---------- */
 import { Application } from "./src/Application";
@@ -143,7 +143,7 @@ new NewstackClient().start(app);
 
   // Create esbuild.config.ts
   const esbuildConfig = `/* ---------- External ---------- */
-import { builder } from "newstack/builder";
+import { builder } from "@moureau/newstack/builder";
 ${withTailwind ? `import tailwindPlugin from "esbuild-plugin-tailwindcss";\n` : ""}
 export default {
   server: {
@@ -159,7 +159,7 @@ export default {
 
   // Create src/Application.tsx
   const applicationTsx = `/* ---------- External ---------- */
-import Newstack from "newstack";
+import Newstack from "@moureau/newstack";
 
 /* ---------- Pages ---------- */
 import { Home } from "./Home";
@@ -182,7 +182,7 @@ export class Application extends Newstack {
 
   // Create src/Home.tsx
   const homeTsx = `/* ---------- External ---------- */
-import Newstack from "newstack";
+import Newstack from "@moureau/newstack";
 
 /**
  * @description

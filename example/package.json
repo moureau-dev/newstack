@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "socket.io-client": "^4.8.1",
-    "newstack": "workspace:*",
+    "@moureau/newstack": "workspace:*",
     "esbuild": "^0.25.5",
     "@swc/core": "^1.15.2",
     "tailwindcss": "^4",
