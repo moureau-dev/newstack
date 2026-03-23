@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, readFile } from "fs/promises";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -22,6 +22,13 @@ async function createApp() {
   await mkdir(projectPath, { recursive: true });
   await mkdir(join(projectPath, "src"), { recursive: true });
   await mkdir(join(projectPath, "public"), { recursive: true });
+  await mkdir(join(projectPath, "docs"), { recursive: true });
+
+  // Create newstack.md
+  await writeFile(
+      join(projectPath, "docs", "NEWSTACK.md"),
+      await readFile(join(__dirname, "newstack.md"))
+  )
 
   // Create package.json
   const packageJson = {
@@ -95,6 +102,10 @@ Build for production:
 \`\`\`bash
 bun run build
 \`\`\`
+
+## AI Reference
+
+See [docs/NEWSTACK.md](docs/NEWSTACK.md) for a complete framework reference that AI tools can use for context.
 
 ## Learn More
 
@@ -191,6 +202,12 @@ export class Home extends Newstack {
   /* ---------- Proxies ---------- */
   count = 0;
 
+  /* ---------- Lifecycle ---------- */
+  prepare({ page }) {
+    page.title = "Newstack";
+    page.description = "Welcome to Newstack";
+  }
+
   render() {
     return (
       <div class="home">
@@ -224,6 +241,7 @@ code {
   background: oklch(17.1% 0 0);
   padding: 2px 6px;
   border-radius: 3px;
+  color: white;
 }
 
 .home {
