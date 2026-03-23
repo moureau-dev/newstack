@@ -33,7 +33,7 @@ async function createApp() {
       build: "newstack build",
     },
     dependencies: {
-      "@moureau/newstack": "^0.0.1",
+      "@moureau/newstack": "latest",
       esbuild: "^0.25.5",
       "@swc/core": "^1.15.2",
       ...(withTailwind && {
