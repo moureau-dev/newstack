@@ -220,7 +220,10 @@ export class BuildManager {
 
     const traverse = (vnode: any) => {
       if (!vnode) return;
-      if (Array.isArray(vnode)) { vnode.forEach(traverse); return; }
+      if (Array.isArray(vnode)) {
+        vnode.forEach(traverse);
+        return;
+      }
       if (typeof vnode !== "object") return;
       const { type, props } = vnode;
       if (props?.route && props.route !== "*") routes.push(props.route);

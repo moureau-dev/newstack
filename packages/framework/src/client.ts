@@ -57,15 +57,20 @@ export class NewstackClient {
       base: location.origin,
     } as NewstackClientContext["router"];
 
-    const scriptSrc = document.querySelector('script[src*="client.js"]')?.getAttribute("src") ?? "";
-    const fingerprint = new URL(scriptSrc, location.origin).searchParams.get("fingerprint") ?? "";
+    const scriptSrc =
+      document.querySelector('script[src*="client.js"]')?.getAttribute("src") ??
+      "";
+    const fingerprint =
+      new URL(scriptSrc, location.origin).searchParams.get("fingerprint") ?? "";
 
     const ctx: Partial<NewstackClientContext> = {
       environment: "client",
       page,
       router,
       params: {},
-      instances: new Proxy({} as Record<string, any>, { get: (t, k) => k in t ? t[k as string] : {} }),
+      instances: new Proxy({} as Record<string, any>, {
+        get: (t, k) => (k in t ? t[k as string] : {}),
+      }),
       settings: __NEWSTACK_SETTINGS__ ?? {},
       fingerprint,
     };
@@ -146,10 +151,23 @@ export class NewstackClient {
       if (!href) return;
 
       const target = link.getAttribute("target");
-      const isExternal = href.startsWith("http://") || href.startsWith("https://") || href.startsWith("//");
-      const isSpecial = href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
+      const isExternal =
+        href.startsWith("http://") ||
+        href.startsWith("https://") ||
+        href.startsWith("//");
+      const isSpecial =
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:");
 
-      if (target === "_blank" || target === "_parent" || target === "_top" || isExternal || isSpecial) return;
+      if (
+        target === "_blank" ||
+        target === "_parent" ||
+        target === "_top" ||
+        isExternal ||
+        isSpecial
+      )
+        return;
 
       e.preventDefault();
       history.pushState({}, "", href);
@@ -220,7 +238,8 @@ export class NewstackClient {
 
     for (const component of components) {
       const hash = (component.constructor as any).hash as string;
-      if (this.renderer.persistentHashes.has(hash) && component.hydrated) continue;
+      if (this.renderer.persistentHashes.has(hash) && component.hydrated)
+        continue;
 
       (component as any).__preparing = true;
       await component.prepare?.(this.context);
