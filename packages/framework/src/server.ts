@@ -30,6 +30,19 @@ const __dirname = dirname(__filename);
 const files = new Map<PublicFile, string>();
 const hash = randomUUID();
 
+const SKIP_STATE_KEYS = new Set([
+  "prepared", "hydrated", "__ctx", "__preparing", "__hydrating", "__node", "__hash",
+]);
+
+function serializeState(component: object): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(component)) {
+    if (SKIP_STATE_KEYS.has(key) || key.startsWith("__") || typeof value === "function") continue;
+    result[key] = value;
+  }
+  return result;
+}
+
 const mimeTypes: Record<string, string> = {
   ".js": "application/javascript",
   ".css": "text/css",
@@ -337,7 +350,7 @@ export class NewstackServer {
       Object.fromEntries(
         Array.from(this.renderer.components.entries())
           .filter(([hash]) => this.renderer.visibleHashes.has(hash))
-          .map(([hash, { component }]) => [hash, { state: component }]),
+          .map(([hash, { component }]) => [hash, { state: serializeState(component) }]),
       ),
     );
 
