@@ -321,15 +321,15 @@ export class NewstackServer {
    */
   private async template(): Promise<string> {
     this.renderer.visibleHashes.clear();
-    this.renderer.headInjections = [];
+    this.renderer.head.reset();
     const element = this.app.render(context as NewstackClientContext);
     this.renderer.html(element);
     await this.prepare();
-    this.renderer.headInjections = [];
+    this.renderer.head.reset();
     const page = this.renderer.html(element);
 
     const hmrScript = this.hmrManager.clientInjection();
-    const headInjections = this.renderer.headInjections.join("\n");
+    const headInjections = this.renderer.head.serverHtml();
 
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
