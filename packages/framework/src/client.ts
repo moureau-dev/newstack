@@ -141,10 +141,16 @@ export class NewstackClient {
   private patchLinks() {
     document.querySelectorAll("a").forEach((link) => {
       link.onclick = (e) => {
-        e.preventDefault();
         const href = link.getAttribute("href");
         if (!href) return;
 
+        const target = link.getAttribute("target");
+        const isExternal = href.startsWith("http://") || href.startsWith("https://") || href.startsWith("//");
+        const isSpecial = href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
+
+        if (target === "_blank" || target === "_parent" || target === "_top" || isExternal || isSpecial) return;
+
+        e.preventDefault();
         history.pushState({}, "", href);
         void this.renderRoute(href);
       };
