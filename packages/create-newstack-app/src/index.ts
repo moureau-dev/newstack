@@ -26,9 +26,9 @@ async function createApp() {
 
   // Create newstack.md
   await writeFile(
-      join(projectPath, "docs", "NEWSTACK.md"),
-      await readFile(join(__dirname, "newstack.md"))
-  )
+    join(projectPath, "docs", "NEWSTACK.md"),
+    await readFile(join(__dirname, "newstack.md")),
+  );
 
   // Create package.json
   const packageJson = {
@@ -76,7 +76,12 @@ async function createApp() {
   );
 
   // Create .env
-  await writeFile(join(projectPath, ".env"), "# Environment variables\n");
+  await writeFile(
+    join(projectPath, ".env"),
+    `# Environment variables
+NEWSTACK_PORT="3000"
+`,
+  );
 
   // Create README.md
   const readme = `# ${projectName}

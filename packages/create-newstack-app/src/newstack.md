@@ -420,13 +420,43 @@ export class UserList extends Newstack {
 
 ---
 
+## Head Injection
+
+Components can inject scripts, meta tags, and links into `<head>` directly from JSX. Content is scoped per component and cleaned up when the component stops rendering or the route changes.
+
+```tsx
+export class Page extends Newstack {
+  render() {
+    return (
+      <>
+        <head>
+          <script src="https://cdn.example.com/analytics.js" />
+          <meta name="theme-color" content="#101010" />
+          <link rel="canonical" href="https://example.com/page" />
+        </head>
+        <div>...page content...</div>
+      </>
+    );
+  }
+}
+```
+
+- Works on SSR and client-side navigation.
+- Each component's head content is tagged and cleaned up independently — multiple components injecting `<head>` blocks coexist without conflict.
+- Content is not re-injected if it hasn't changed (prevents unnecessary DOM churn).
+- Scripts are created via `document.createElement('script')` on the client so they actually execute (innerHTML script tags are inert in browsers).
+
+---
+
 ## Build & Dev
 
 ```bash
-newstack start        # dev server with HMR (watch mode)
-newstack build        # production SSR build
-newstack build --mode=ssg  # static site generation
-newstack build --mode=spa  # SPA (client-only) build
+newstack start              # dev server with HMR (watch mode)
+newstack build              # production SSR build
+newstack build --mode=ssg   # static site generation
+newstack build --mode=spa   # SPA (client-only) build
+
+NEWSTACK_PORT=4000 newstack start  # custom port (default 3000)
 ```
 
 esbuild config lives in `esbuild.config.ts` at project root:
