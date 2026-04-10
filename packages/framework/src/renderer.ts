@@ -246,10 +246,7 @@ export class Renderer {
         this.visibleHashes.add(hash);
 
         if (this.context.environment === "client") {
-          if (!vnode.props) {
-            vnode.props = {};
-          }
-          vnode.props["data-newstack"] = hash;
+          setComponentMarker(vnode, hash);
         }
 
         const prevHash = this.head.currentHash;
@@ -433,7 +430,10 @@ export class Renderer {
     const setupChildrenRecursively = (vnode: VNode) => {
       const loop = (node: VNode) => {
         if (!node) return;
-        if (Array.isArray(node)) { (node as VNode[]).forEach(loop); return; }
+        if (Array.isArray(node)) {
+          (node as VNode[]).forEach(loop);
+          return;
+        }
         if (typeof node !== "object") return;
 
         const { type, props } = node;
@@ -482,7 +482,10 @@ export class Renderer {
     const setupDefaultVisibleHashes = (vnode: VNode) => {
       const loop = (node: VNode) => {
         if (!node) return;
-        if (Array.isArray(node)) { (node as VNode[]).forEach(loop); return; }
+        if (Array.isArray(node)) {
+          (node as VNode[]).forEach(loop);
+          return;
+        }
         if (typeof node !== "object") return;
 
         const { type, props } = node;
@@ -554,10 +557,21 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
       // zero-arg calls or calls with non-object args (numbers, strings, etc).
       // Excludes constructor and any method that carries static properties
       // (like .hash) so they are returned as-is.
-      if (typeof val === "function" && typeof key === "string" && key !== "constructor" && !(val as any).hash) {
+      if (
+        typeof val === "function" &&
+        typeof key === "string" &&
+        key !== "constructor" &&
+        !(val as any).hash
+      ) {
         return (...args: unknown[]) => {
           const ctx = (target as any).__ctx;
-          if (ctx && args.length > 0 && args[0] !== null && typeof args[0] === "object" && !Array.isArray(args[0])) {
+          if (
+            ctx &&
+            args.length > 0 &&
+            args[0] !== null &&
+            typeof args[0] === "object" &&
+            !Array.isArray(args[0])
+          ) {
             args[0] = { ...ctx, ...(args[0] as object) };
           }
           return (val as (...a: unknown[]) => unknown).apply(proxy, args);
@@ -823,4 +837,59 @@ function isComponentNode(node: VNode): boolean {
 
 function isRenderableComponent(c: Newstack): boolean {
   return c.render && typeof c.render === "function";
+}
+
+/**
+ * Resolves through Fragment/arrays (skipping <head>) to return the first
+ * real DOM element vnode. Used in updateComponent so patchElement receives
+ * the element vnode whose children align with the actual DOM children,
+ * rather than the Fragment wrapper whose children are [head, div].
+ */
+function resolveToElementVNode(vnode: VNode): VNode | null {
+  if (!vnode || typeof vnode !== "object") return null;
+  if (Array.isArray(vnode)) {
+    for (const child of vnode as VNode[]) {
+      const r = resolveToElementVNode(child);
+      if (r) return r;
+    }
+    return null;
+  }
+  const v = vnode as any;
+  if (v.type === "head") return null;
+  if (typeof v.type === "function" && !(v.type as any).hash) {
+    return resolveToElementVNode(
+      (v.type as (p: unknown) => VNode)(v.props ?? {}),
+    );
+  }
+  if (typeof v.type === "string") return vnode;
+  return null;
+}
+
+/**
+ * Recursively resolves through Fragment/array vnodes to find the first
+ * real DOM element and stamps data-newstack on it. This is needed when a
+ * component's render() returns a Fragment (e.g. <>...</>) — setting the
+ * attribute on the Fragment vnode itself is a no-op because Fragment just
+ * returns its children, dropping any extra props.
+ */
+function setComponentMarker(vnode: VNode, hash: string): boolean {
+  if (!vnode || typeof vnode !== "object") return false;
+  if (Array.isArray(vnode)) {
+    for (const child of vnode as VNode[]) {
+      if (setComponentMarker(child, hash)) return true;
+    }
+    return false;
+  }
+  const v = vnode as any;
+  if (v.type === "head") return false;
+  if (typeof v.type === "function" && !(v.type as any).hash) {
+    const resolved = (v.type as (p: unknown) => VNode)(v.props ?? {});
+    return setComponentMarker(resolved, hash);
+  }
+  if (typeof v.type === "string") {
+    if (!v.props) v.props = {};
+    v.props["data-newstack"] = hash;
+    return true;
+  }
+  return false;
 }
