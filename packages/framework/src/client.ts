@@ -139,21 +139,22 @@ export class NewstackClient {
    * It also listens for the `popstate` event to handle back/forward navigation.
    */
   private patchLinks() {
-    document.querySelectorAll("a").forEach((link) => {
-      link.onclick = (e) => {
-        const href = link.getAttribute("href");
-        if (!href) return;
+    document.addEventListener("click", (e) => {
+      const link = (e.target as Element).closest("a");
+      if (!link) return;
 
-        const target = link.getAttribute("target");
-        const isExternal = href.startsWith("http://") || href.startsWith("https://") || href.startsWith("//");
-        const isSpecial = href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
+      const href = link.getAttribute("href");
+      if (!href) return;
 
-        if (target === "_blank" || target === "_parent" || target === "_top" || isExternal || isSpecial) return;
+      const target = link.getAttribute("target");
+      const isExternal = href.startsWith("http://") || href.startsWith("https://") || href.startsWith("//");
+      const isSpecial = href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
 
-        e.preventDefault();
-        history.pushState({}, "", href);
-        void this.renderRoute(href);
-      };
+      if (target === "_blank" || target === "_parent" || target === "_top" || isExternal || isSpecial) return;
+
+      e.preventDefault();
+      history.pushState({}, "", href);
+      void this.renderRoute(href);
     });
 
     window.addEventListener(
