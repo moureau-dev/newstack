@@ -440,13 +440,20 @@ export class Renderer {
      */
     const setupDefaultVisibleHashes = (vnode: VNode) => {
       const loop = (node: VNode) => {
-        if (!node || typeof node !== "object") return;
+        if (!node) return;
+        if (Array.isArray(node)) { (node as VNode[]).forEach(loop); return; }
+        if (typeof node !== "object") return;
 
         const { type, props } = node;
 
         if (isComponentNode(node)) {
           const hash = (type as unknown as { hash: string }).hash;
           this.visibleHashes.add(hash);
+        }
+
+        if (typeof type === "function" && !(type as any).hash) {
+          loop((type as (p: unknown) => VNode)(props ?? {}));
+          return;
         }
 
         if (Array.isArray(props?.children)) {
