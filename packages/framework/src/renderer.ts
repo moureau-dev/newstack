@@ -42,6 +42,12 @@ export class Renderer {
   lastVNode: any;
   private isUpdating = false;
 
+  /**
+   * Accumulated <head> children collected during the current html() pass.
+   * Flushed by the server into the <head> template and by the client into document.head.
+   */
+  headInjections: string[] = [];
+
   constructor(context: NewstackClientContext = {} as NewstackClientContext) {
     this.context = context;
     this.components = new Map();
@@ -164,6 +170,15 @@ export class Renderer {
     if (node === null || typeof node !== "object") return "";
 
     const { type, props } = node;
+
+    // Hoist <head> children into headInjections instead of rendering inline
+    if (type === "head") {
+      const children = Array.isArray(props?.children)
+        ? props.children.map((c) => this.html(c)).join("")
+        : this.html(props?.children);
+      this.headInjections.push(children);
+      return "";
+    }
 
     // Skip rendering if the route does not match
     if (props?.route) {
@@ -303,8 +318,13 @@ export class Renderer {
    * @param container The HTML element where the new virtual node should be rendered.
    */
   patchRoute(newVNode: VNode, container: Element) {
-    if (!this.lastVNode) {
+    this.headInjections = [];
+    const isHydration = !this.lastVNode;
+
+    if (isHydration) {
       container.innerHTML = this.html(newVNode);
+      // SSR already injected <head> content
+      this.headInjections = [];
       this.lastVNode = newVNode;
       return;
     }
@@ -318,7 +338,26 @@ export class Renderer {
       patchElement(oldEl, newEl, newVNode, () => {});
     }
 
+    this.flushHeadInjections();
     this.lastVNode = newVNode;
+  }
+
+  private flushHeadInjections() {
+    if (typeof document === "undefined" || this.headInjections.length === 0)
+      return;
+
+    // Remove previously injected head nodes so route changes don't accumulate
+    document.head
+      .querySelectorAll("[data-newstack-head]")
+      .forEach((el) => el.remove());
+
+    const temp = document.createElement("div");
+    temp.innerHTML = this.headInjections.join("\n");
+    for (const child of Array.from(temp.children)) {
+      (child as Element).setAttribute("data-newstack-head", "");
+      document.head.appendChild(child);
+    }
+    this.headInjections = [];
   }
 
   /**

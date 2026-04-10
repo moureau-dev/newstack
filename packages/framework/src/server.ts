@@ -321,12 +321,15 @@ export class NewstackServer {
    */
   private async template(): Promise<string> {
     this.renderer.visibleHashes.clear();
+    this.renderer.headInjections = [];
     const element = this.app.render(context as NewstackClientContext);
     this.renderer.html(element);
     await this.prepare();
+    this.renderer.headInjections = [];
     const page = this.renderer.html(element);
 
     const hmrScript = this.hmrManager.clientInjection();
+    const headInjections = this.renderer.headInjections.join("\n");
 
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
@@ -356,6 +359,7 @@ export class NewstackServer {
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
             <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
             <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
+            ${headInjections}
             ${hmrScript}
         </head>
 
