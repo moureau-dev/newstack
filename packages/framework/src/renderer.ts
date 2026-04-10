@@ -157,6 +157,8 @@ export class Renderer {
    * @returns A string representing the rendered HTML.
    */
   html(node: VNode): string {
+    if (Array.isArray(node))
+      return (node as VNode[]).map((c) => this.html(c)).join("");
     if (typeof node === "string" || typeof node === "number")
       return String(node);
     if (node === null || typeof node !== "object") return "";
@@ -188,7 +190,11 @@ export class Renderer {
       if (isPersistent) this.persistentHashes.add(hash);
 
       let { component, reinitiate } = this.components.get(hash);
-      if (this.context.environment === "client" && !this.isUpdating && !isPersistent) {
+      if (
+        this.context.environment === "client" &&
+        !this.isUpdating &&
+        !isPersistent
+      ) {
         component = reinitiate();
 
         if (!this.lastVNode) {
@@ -235,7 +241,12 @@ export class Renderer {
       : this.html(props?.children);
 
     const attrs = Object.entries(props || {})
-      .filter(([key]) => !["route", "children", "bind", "key", "persistent", "html"].includes(key))
+      .filter(
+        ([key]) =>
+          !["route", "children", "bind", "key", "persistent", "html"].includes(
+            key,
+          ),
+      )
       .filter(([, val]) => typeof val !== "function")
       .map(([key, val]) => ` ${key}="${val}"`)
       .join("");
@@ -512,6 +523,44 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
  * @param vnode The virtual node representation of the new element, used for event listeners and other properties.
  * @param update A callback function to call after the patching is complete, typically used to trigger a re-render or update in the application.
  */
+/**
+ * Flatten vnode children into a 1:1 match with DOM childNodes.
+ * - null / false / undefined → skipped (produce no DOM node)
+ * - string / number → kept (produce text nodes)
+ * - Fragment / other function components → expanded recursively
+ * - Regular element vnodes and Newstack components → kept as one slot each
+ */
+function flattenVNodeChildren(vnodes: unknown[]): VNode[] {
+  const result: VNode[] = [];
+  for (const vnode of vnodes) {
+    if (vnode == null || vnode === false) continue;
+    if (Array.isArray(vnode)) {
+      result.push(...flattenVNodeChildren(vnode));
+      continue;
+    }
+    if (typeof vnode === "string" || typeof vnode === "number") {
+      result.push(vnode as unknown as VNode);
+      continue;
+    }
+    if (typeof vnode === "object") {
+      const v = vnode as { type?: unknown; props?: unknown };
+      if (typeof v.type === "function" && !(v.type as any).hash) {
+        const resolved = (v.type as (p: unknown) => unknown)(
+          (v.props as any) ?? {},
+        );
+        result.push(
+          ...flattenVNodeChildren(
+            Array.isArray(resolved) ? resolved : [resolved],
+          ),
+        );
+        continue;
+      }
+    }
+    result.push(vnode as VNode);
+  }
+  return result;
+}
+
 function patchElement(
   oldEl: Element,
   newEl: Element,
@@ -522,9 +571,10 @@ function patchElement(
   const oldAttrs = oldEl.attributes;
   const newAttrs = newEl.attributes;
 
-  const vnodeChildren = Array.isArray(vnode?.props?.children)
-    ? vnode.props.children
+  const rawVnodeChildren = Array.isArray(vnode?.props?.children)
+    ? (vnode.props.children as unknown[])
     : [vnode?.props?.children];
+  const vnodeChildren = flattenVNodeChildren(rawVnodeChildren);
 
   // Remove old attributes
   Array.from(oldAttrs).forEach((attr) => {
@@ -597,7 +647,11 @@ function patchElement(
     const vchild = resolveFunctionVNode(vnodeChildren[i]);
 
     if (!oldChild && newChild) {
-      oldEl.appendChild(newChild.cloneNode(true));
+      const inserted = newChild.cloneNode(true);
+      oldEl.appendChild(inserted);
+      if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
+        patchElement(inserted as Element, inserted as Element, vchild, update);
+      }
       continue;
     }
 
@@ -607,7 +661,11 @@ function patchElement(
     }
 
     if (oldChild.nodeType !== newChild.nodeType) {
-      oldEl.replaceChild(newChild.cloneNode(true), oldChild);
+      const inserted = newChild.cloneNode(true);
+      oldEl.replaceChild(inserted, oldChild);
+      if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
+        patchElement(inserted as Element, inserted as Element, vchild, update);
+      }
       continue;
     }
 
@@ -628,7 +686,11 @@ function patchElement(
     ) {
       patchElement(oldChild as Element, newChild as Element, vchild, update);
     } else {
-      oldEl.replaceChild(newChild.cloneNode(true), oldChild);
+      const inserted = newChild.cloneNode(true);
+      oldEl.replaceChild(inserted, oldChild);
+      if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
+        patchElement(inserted as Element, inserted as Element, vchild, update);
+      }
     }
   }
 }

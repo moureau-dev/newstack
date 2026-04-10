@@ -25,6 +25,7 @@ export const server: BuildOptions = {
   format: "esm",
   target: "es2020",
   jsxFactory: "h",
+  jsxFragment: "Fragment",
   inject: [jsxInjectPath],
   conditions: ["source"],
 };
@@ -46,6 +47,7 @@ export const client: BuildOptions = {
   target: "esnext",
   format: "esm",
   jsxFactory: "h",
+  jsxFragment: "Fragment",
   inject: [jsxInjectPath],
   conditions: ["source"],
 };
