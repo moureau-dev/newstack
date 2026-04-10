@@ -439,9 +439,11 @@ export class NewstackServer {
       return this.server;
     }
 
+    const port = process.env.NEWSTACK_PORT ? Number(process.env.NEWSTACK_PORT) : undefined;
+
     if (process.env.NEWSTACK_SPA_DEV === "true") {
       this.setupSpaRoutes();
-      serve(this.server, ({ port }) => {
+      serve({ fetch: this.server.fetch, port }, ({ port }) => {
         console.log(
           `Newstack SPA server is running on http://localhost:${port} 🚀`,
         );
@@ -454,7 +456,7 @@ export class NewstackServer {
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
 
-    serve(this.server, ({ port }) => {
+    serve({ fetch: this.server.fetch, port }, ({ port }) => {
       console.log(`Newstack server is running on http://localhost:${port} 🚀`);
     });
 
