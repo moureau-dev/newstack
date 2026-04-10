@@ -98,6 +98,7 @@ const context = proxifyContext({
   instances: new Proxy({} as Record<string, any>, { get: (t, k) => k in t ? t[k as string] : {} }),
   page: {} as NewstackClientContext["page"],
   router: {} as NewstackClientContext["router"],
+  fingerprint: hash,
 }) as NewstackServerContext & NewstackClientContext;
 
 const loaders = {

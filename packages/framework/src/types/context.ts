@@ -63,6 +63,11 @@ interface NewstackCommonContext {
   page: NewstackPage;
 
   /**
+   * Unique hash for the current build, used for cache-busting assets.
+   */
+  fingerprint: string;
+
+  /**
    * Information about the app manifest and metadata
    */
   project: NewstackProject;

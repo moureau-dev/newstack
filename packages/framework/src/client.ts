@@ -57,6 +57,9 @@ export class NewstackClient {
       base: location.origin,
     } as NewstackClientContext["router"];
 
+    const scriptSrc = document.querySelector('script[src*="client.js"]')?.getAttribute("src") ?? "";
+    const fingerprint = new URL(scriptSrc, location.origin).searchParams.get("fingerprint") ?? "";
+
     const ctx: Partial<NewstackClientContext> = {
       environment: "client",
       page,
@@ -64,6 +67,7 @@ export class NewstackClient {
       params: {},
       instances: new Proxy({} as Record<string, any>, { get: (t, k) => k in t ? t[k as string] : {} }),
       settings: __NEWSTACK_SETTINGS__ ?? {},
+      fingerprint,
     };
 
     this.context = proxifyContext(ctx, this) as NewstackClientContext;
