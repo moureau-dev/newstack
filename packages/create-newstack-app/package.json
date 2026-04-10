@@ -1,6 +1,6 @@
 {
   "name": "create-newstack-app",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Scaffold a new Newstack application",
   "type": "module",
   "files": ["dist"],

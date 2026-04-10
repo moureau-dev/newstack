@@ -67,13 +67,19 @@ Two valid forms:
 // Arrow function — works as expected
 <button onclick={() => this.count++}>+</button>
 
-// Method reference — auto-binds this and passes (context, event)
+// Method reference — auto-binds this and passes context as first arg
 <button onclick={this.handleClick}>click</button>
 ```
 
-When using method reference form, the method signature is:
+When using method reference form, the method receives the full context (including `event`) as its first argument:
 
 ```tsx
+handleClick({ event, router }: NewstackClientContext) {
+  console.log(event.target); // the DOM event
+  this.count++;
+}
+
+// Second param still works for backwards compatibility
 handleClick(context: NewstackClientContext, e: Event) {
   this.count++;
 }
@@ -123,18 +129,20 @@ Two context shapes exist. On the server, `environment === "server"`. On the clie
 ```ts
 // Always available
 context.environment       // "server" | "client"
+context.page.title        // sets <title>
 context.params            // route params e.g. { id: "42" }
+context.fingerprint       // build hash — useful for cache-busting
 context.deps              // injected dependencies (db, logger, etc.)
 context.instances         // named component instances registered via key=""
 context.instances.auth    // safe — returns {} if not yet registered
 
 // Client only
 context.router.path       // current path string
-context.router.navigate(path: string) // client-side navigation
-context.page.title        // sets <title>
+context.event             // DOM Event — set when called from an event handler
 
 // Server only
 context.path              // request path
+context.secrets           // server-only secrets from env
 ```
 
 ---
@@ -159,7 +167,8 @@ render(context) {
 - Components with a non-matching `route` render as `<!---->` (invisible).
 - Dynamic params are available via `context.params.id`.
 - `route="*"` is a catch-all.
-- Client navigation is handled automatically — links with `href` are patched.
+- Client navigation is handled automatically — all `<a>` tags are intercepted via a delegated listener, including ones added dynamically after hydration.
+- Links with `target="_blank"`, external URLs, `#hash`, `mailto:`, and `tel:` are not intercepted and behave normally.
 
 ---
 
@@ -309,6 +318,63 @@ render() {
 
 ---
 
+## Sub-render Helpers
+
+Methods called from `render()` automatically receive the current context as their first argument — no need to pass it down manually:
+
+```tsx
+export class Page extends Newstack {
+  renderHeader({ router }: NewstackClientContext) {
+    return <h1>Current path: {router.path}</h1>;
+  }
+
+  render() {
+    return (
+      <div>
+        {this.renderHeader({})}
+      </div>
+    );
+  }
+}
+```
+
+Caller-supplied keys override context values — `this.renderHeader({ router: customRouter })` still works.
+
+---
+
+## Function Component Layout Wrappers
+
+Function components can contain class components. All class components inside a function component are discovered and registered correctly:
+
+```tsx
+import { Navbar } from "./Navbar"; // class component
+import { Footer } from "./Footer"; // class component
+
+export function Layout({ children }) {
+  return (
+    <main>
+      <Navbar />
+      {children}
+      <Footer />
+    </main>
+  );
+}
+
+// Application.tsx
+export class Application extends Newstack {
+  render() {
+    return (
+      <Layout>
+        <Home route="/" />
+        <About route="/about" />
+      </Layout>
+    );
+  }
+}
+```
+
+---
+
 ## Loading States with `hydrated` / `prepared`
 
 ```tsx
@@ -332,6 +398,8 @@ export class UserList extends Newstack {
 
 - Factory is `h` from `@newstack/jsx`. Injected automatically by the bundler — no manual import needed.
 - Standard JSX syntax. Use `class` not `className`. Use `onclick` not `onClick` (lowercase DOM events).
+- Fragment syntax `<>...</>` is supported.
+- The `html` prop sets `innerHTML` directly on an element — use for trusted raw HTML strings.
 
 ```tsx
 // ✅
@@ -339,6 +407,15 @@ export class UserList extends Newstack {
 
 // ❌
 <div className="box" onClick={() => this.open = true}>
+
+// Fragments
+<>
+  <p>First</p>
+  <p>Second</p>
+</>
+
+// Raw HTML
+<div html={this.trustedHtmlString} />
 ```
 
 ---
@@ -383,7 +460,8 @@ export default {
 | `className="foo"` | `class="foo"` |
 | `import { h } from "@newstack/jsx"` | Not needed — injected automatically |
 | Accessing `window` in `prepare()` | Only safe in `hydrate()` / `update()` |
-| Returning multiple root elements | Wrap in a single parent element |
+| Returning multiple root elements without a wrapper | Use `<>...</>` fragment syntax |
+| `handleClick(ctx, e)` to access event | `handleClick({ event })` — event is on context |
 
 ### update()
 
