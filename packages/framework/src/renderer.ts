@@ -392,6 +392,7 @@ export class Renderer {
     const setupChildrenRecursively = (vnode: VNode) => {
       const loop = (node: VNode) => {
         if (!node) return;
+        if (Array.isArray(node)) { (node as VNode[]).forEach(loop); return; }
         if (typeof node !== "object") return;
 
         const { type, props } = node;
@@ -411,6 +412,13 @@ export class Renderer {
           if (isRenderableComponent(component)) {
             loop(component.render(this.context));
           }
+          return;
+        }
+
+        // Plain function component — call it to get its rendered output
+        if (typeof type === "function") {
+          loop((type as (p: unknown) => VNode)(props ?? {}));
+          return;
         }
 
         if (Array.isArray(props?.children)) {
@@ -421,7 +429,7 @@ export class Renderer {
           return;
         }
 
-        loop(props.children);
+        loop(props?.children);
       };
 
       loop(vnode);
@@ -448,7 +456,7 @@ export class Renderer {
           return;
         }
 
-        loop(props.children);
+        loop(props?.children);
       };
 
       loop(vnode);
