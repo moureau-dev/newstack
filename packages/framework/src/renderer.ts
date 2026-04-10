@@ -500,6 +500,20 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
         };
       }
 
+      // Auto-inject context into any other method call whose first argument
+      // is a plain object (e.g. this.renderIntro({})) so sub-render helpers
+      // receive the full context without it being passed explicitly.
+      if (typeof val === "function") {
+        return (...args: unknown[]) => {
+          const ctx = (target as any).__ctx;
+          if (ctx) {
+            const first = args[0];
+            args[0] = { ...ctx, ...(first != null && typeof first === "object" ? first : {}) };
+          }
+          return (val as (...a: unknown[]) => unknown).apply(proxy, args);
+        };
+      }
+
       return val;
     },
     set(target, key, value) {
