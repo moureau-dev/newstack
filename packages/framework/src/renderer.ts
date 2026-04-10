@@ -1,4 +1,5 @@
 import type { Newstack, NewstackClientContext } from "./core";
+import { HeadManager } from "./head";
 
 type VNode = {
   type: string | ((...args: unknown[]) => unknown);
@@ -44,9 +45,10 @@ export class Renderer {
 
   /**
    * Accumulated <head> children collected during the current html() pass.
-   * Flushed by the server into the <head> template and by the client into document.head.
+   * Each entry is tagged with the hash of the component that produced it so
+   * scoped cleanup works when a single component re-renders.
    */
-  headInjections: string[] = [];
+  readonly head = new HeadManager();
 
   constructor(context: NewstackClientContext = {} as NewstackClientContext) {
     this.context = context;
@@ -171,12 +173,18 @@ export class Renderer {
 
     const { type, props } = node;
 
-    // Hoist <head> children into headInjections instead of rendering inline
+    // Hoist <head> children into headInjections instead of rendering inline.
+    // Each child is stored as a separate entry so the server can stamp
+    // data-newstack-head on every element individually.
     if (type === "head") {
       const children = Array.isArray(props?.children)
-        ? props.children.map((c) => this.html(c)).join("")
-        : this.html(props?.children);
-      this.headInjections.push(children);
+        ? props.children
+        : [props?.children];
+
+      for (const child of children) {
+        const html = this.html(child);
+        if (html) this.head.collect(html);
+      }
       return "";
     }
 
@@ -244,7 +252,10 @@ export class Renderer {
           vnode.props["data-newstack"] = hash;
         }
 
+        const prevHash = this.head.currentHash;
+        this.head.currentHash = hash;
         const node = this.html(vnode);
+        this.head.currentHash = prevHash;
         return node;
       }
 
@@ -318,13 +329,12 @@ export class Renderer {
    * @param container The HTML element where the new virtual node should be rendered.
    */
   patchRoute(newVNode: VNode, container: Element) {
-    this.headInjections = [];
+    this.head.reset();
     const isHydration = !this.lastVNode;
 
     if (isHydration) {
       container.innerHTML = this.html(newVNode);
-      // SSR already injected <head> content
-      this.headInjections = [];
+      this.head.reset();
       this.lastVNode = newVNode;
       return;
     }
@@ -338,26 +348,8 @@ export class Renderer {
       patchElement(oldEl, newEl, newVNode, () => {});
     }
 
-    this.flushHeadInjections();
+    this.head.flush();
     this.lastVNode = newVNode;
-  }
-
-  private flushHeadInjections() {
-    if (typeof document === "undefined" || this.headInjections.length === 0)
-      return;
-
-    // Remove previously injected head nodes so route changes don't accumulate
-    document.head
-      .querySelectorAll("[data-newstack-head]")
-      .forEach((el) => el.remove());
-
-    const temp = document.createElement("div");
-    temp.innerHTML = this.headInjections.join("\n");
-    for (const child of Array.from(temp.children)) {
-      (child as Element).setAttribute("data-newstack-head", "");
-      document.head.appendChild(child);
-    }
-    this.headInjections = [];
   }
 
   /**
@@ -378,8 +370,12 @@ export class Renderer {
     if (!container) return;
 
     this.isUpdating = true;
+    this.head.clearFor(staticComponent.hash);
     const vnode = component.render(this.context);
+    const prevHash = this.head.currentHash;
+    this.head.currentHash = staticComponent.hash;
     const html = this.html(vnode);
+    this.head.currentHash = prevHash;
     this.isUpdating = false;
 
     const temp = document.createElement("div");
@@ -388,9 +384,15 @@ export class Renderer {
     const newEl = temp.firstElementChild;
     if (!newEl) return;
 
-    patchElement(container, newEl, vnode, () =>
+    // Resolve through Fragment/arrays to get the actual element vnode so
+    // patchElement's vnodeChildren align with the container's DOM children.
+    const resolvedVnode = resolveToElementVNode(vnode) ?? vnode;
+
+    patchElement(container, newEl, resolvedVnode, () =>
       this.updateComponent(component),
     );
+
+    this.head.flush(staticComponent.hash);
   }
 
   /**
