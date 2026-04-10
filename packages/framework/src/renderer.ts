@@ -507,15 +507,17 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
         };
       }
 
-      // Auto-inject context into any other method call whose first argument
-      // is a plain object (e.g. this.renderIntro({})) so sub-render helpers
-      // receive the full context without it being passed explicitly.
-      if (typeof val === "function") {
+      // Auto-inject context into sub-render helpers that explicitly receive a
+      // plain object as their first argument (e.g. this.renderIntro({})).
+      // Only activates when the caller passes a plain object — never touches
+      // zero-arg calls or calls with non-object args (numbers, strings, etc).
+      // Excludes constructor and any method that carries static properties
+      // (like .hash) so they are returned as-is.
+      if (typeof val === "function" && typeof key === "string" && key !== "constructor" && !(val as any).hash) {
         return (...args: unknown[]) => {
           const ctx = (target as any).__ctx;
-          if (ctx) {
-            const first = args[0];
-            args[0] = { ...ctx, ...(first != null && typeof first === "object" ? first : {}) };
+          if (ctx && args.length > 0 && args[0] !== null && typeof args[0] === "object" && !Array.isArray(args[0])) {
+            args[0] = { ...ctx, ...(args[0] as object) };
           }
           return (val as (...a: unknown[]) => unknown).apply(proxy, args);
         };
