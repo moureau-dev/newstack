@@ -9,6 +9,7 @@ import { ManualCounter } from "./components/ManualCounter";
 import { InputShow } from "./components/InputShow";
 import { List } from "./components/List";
 import { SayHelloAppender } from "./components/SayHelloAppender";
+import { HtmlProp } from "./components/HtmlProp";
 
 /**
  * @description
@@ -40,6 +41,7 @@ export class Home extends Newstack {
         <InputShow />
         <List />
         <SayHelloAppender />
+        <HtmlProp />
 
         <footer class="flex gap-4 items-center">
           <a href="/about">About</a>

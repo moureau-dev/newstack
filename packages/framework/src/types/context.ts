@@ -58,6 +58,11 @@ export interface NewstackInstances extends Record<string, Newstack> {}
 
 interface NewstackCommonContext {
   /**
+   * Page metadata
+   */
+  page: NewstackPage;
+
+  /**
    * Information about the app manifest and metadata
    */
   project: NewstackProject;
@@ -85,11 +90,6 @@ interface NewstackCommonContext {
 }
 
 export type NewstackClientContext<T = unknown> = NewstackCommonContext & {
-  /**
-   * Page metadata
-   */
-  page: NewstackPage;
-
   /**
    * Newstack router information
    */

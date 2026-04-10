@@ -235,12 +235,8 @@ export class Renderer {
       : this.html(props?.children);
 
     const attrs = Object.entries(props || {})
-      .filter(([key]) => !["route", "children", "bind", "key", "persistent"].includes(key))
-      .filter(([key, val]) => {
-        const isFunc = typeof val === "function";
-
-        return !isFunc;
-      })
+      .filter(([key]) => !["route", "children", "bind", "key", "persistent", "html"].includes(key))
+      .filter(([, val]) => typeof val !== "function")
       .map(([key, val]) => ` ${key}="${val}"`)
       .join("");
 
@@ -258,7 +254,9 @@ export class Renderer {
       }
     }
 
-    return `<${type}${attrs}${bindAttr}>${children}</${type}>`;
+    const innerContent = props?.html != null ? String(props.html) : children;
+
+    return `<${type}${attrs}${bindAttr}>${innerContent}</${type}>`;
   }
 
   /**
@@ -558,6 +556,12 @@ function patchElement(
         };
       }
     });
+  }
+
+  // innerHTML via html prop
+  if (vnode?.props?.html != null) {
+    oldEl.innerHTML = String(vnode.props.html);
+    return;
   }
 
   // Two-way binding: sync value from component and attach input handler
