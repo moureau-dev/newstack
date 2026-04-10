@@ -106,6 +106,11 @@ export type NewstackClientContext<T = unknown> = NewstackCommonContext & {
   params: NewstackParams;
 
   worker?: NewstackWorker;
+
+  /**
+   * The DOM event that triggered the current handler call, if any.
+   */
+  event?: Event;
   // instances?: NewstackInstances;
   /**
    * Bind object
