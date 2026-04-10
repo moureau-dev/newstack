@@ -219,9 +219,15 @@ export class BuildManager {
     const routes: string[] = [];
 
     const traverse = (vnode: any) => {
-      if (!vnode || typeof vnode !== "object") return;
-      const { props } = vnode;
+      if (!vnode) return;
+      if (Array.isArray(vnode)) { vnode.forEach(traverse); return; }
+      if (typeof vnode !== "object") return;
+      const { type, props } = vnode;
       if (props?.route && props.route !== "*") routes.push(props.route);
+      if (typeof type === "function" && !type.hash) {
+        traverse(type(props ?? {}));
+        return;
+      }
       if (Array.isArray(props?.children)) {
         for (const child of props.children) traverse(child);
       } else if (props?.children) {
