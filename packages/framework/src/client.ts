@@ -94,6 +94,7 @@ export class NewstackClient {
 
     this.app = app;
     this.renderer.setupAllComponents(this.app);
+    this.patchLinks();
 
     this.app.prepare?.(this.context);
     await this.renderRoute(location.pathname);
@@ -125,8 +126,6 @@ export class NewstackClient {
     this.renderer.patchRoute(html, this.root);
 
     this.assignElements();
-
-    this.patchLinks();
 
     await this.startComponents();
   }
