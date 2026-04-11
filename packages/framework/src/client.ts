@@ -174,13 +174,9 @@ export class NewstackClient {
       void this.renderRoute(href);
     });
 
-    window.addEventListener(
-      "popstate",
-      () => {
-        void this.renderRoute(location.pathname);
-      },
-      { once: true },
-    );
+    window.addEventListener("popstate", () => {
+      void this.renderRoute(location.pathname);
+    });
   }
 
   /**
