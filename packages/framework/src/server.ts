@@ -31,13 +31,24 @@ const files = new Map<PublicFile, string>();
 const hash = randomUUID();
 
 const SKIP_STATE_KEYS = new Set([
-  "prepared", "hydrated", "__ctx", "__preparing", "__hydrating", "__node", "__hash",
+  "prepared",
+  "hydrated",
+  "__ctx",
+  "__preparing",
+  "__hydrating",
+  "__node",
+  "__hash",
 ]);
 
 function serializeState(component: object): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(component)) {
-    if (SKIP_STATE_KEYS.has(key) || key.startsWith("__") || typeof value === "function") continue;
+    if (
+      SKIP_STATE_KEYS.has(key) ||
+      key.startsWith("__") ||
+      typeof value === "function"
+    )
+      continue;
     result[key] = value;
   }
   return result;
@@ -350,7 +361,10 @@ export class NewstackServer {
       Object.fromEntries(
         Array.from(this.renderer.components.entries())
           .filter(([hash]) => this.renderer.visibleHashes.has(hash))
-          .map(([hash, { component }]) => [hash, { state: serializeState(component) }]),
+          .map(([hash, { component }]) => [
+            hash,
+            { state: serializeState(component) },
+          ]),
       ),
     );
 
@@ -366,10 +380,6 @@ export class NewstackServer {
 
             <meta name="description" content="${context.page.description || ""}">
             <meta name="og:description" content="${context.page.description || ""}">
-
-            <style>
-      	      body { font-family: Arial, sans-serif; }
-            </style>
 
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
             <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
@@ -413,10 +423,6 @@ export class NewstackServer {
 
             <meta name="description" content="${context.page.description || ""}">
             <meta name="og:description" content="${context.page.description || ""}">
-
-            <style>
-      	      body { font-family: Arial, sans-serif; }
-            </style>
         </head>
 
         <body>
