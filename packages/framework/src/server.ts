@@ -199,6 +199,8 @@ export class NewstackServer {
    * Prepares the components for rendering in the server-side.
    */
   private async prepare() {
+    await this.app.prepare?.(context);
+
     for (const [hash, { component }] of this.renderer.components) {
       if (!this.renderer.visibleHashes.has(hash)) continue;
 
