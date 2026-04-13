@@ -104,6 +104,12 @@ export function proxifyContext(
       if (key === "path" && typeof val === "string") {
         history.pushState({}, "", val);
         client.renderRoute(val);
+
+        const pageUrl = new URL(val, window.location.origin).href;
+        for (const selector of ["link[rel='canonical']", "meta[property='og:url']"]) {
+          const el = document.querySelector(selector);
+          if (el) el.setAttribute(selector.startsWith("link") ? "href" : "content", pageUrl);
+        }
       }
 
       obj[key] = val;
