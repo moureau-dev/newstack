@@ -33,6 +33,24 @@ export function proxifyContext(
         meta.setAttribute("content", val);
       }
 
+      if (prop === "image" && typeof val === "string") {
+        for (const selector of [
+          "meta[property='og:image']",
+          "meta[name='twitter:image']",
+        ]) {
+          let meta = document.querySelector(selector);
+          if (!meta) {
+            meta = document.createElement("meta");
+            const [attr, value] = selector.includes("property")
+              ? ["property", "og:image"]
+              : ["name", "twitter:image"];
+            meta.setAttribute(attr, value);
+            document.head.appendChild(meta);
+          }
+          meta.setAttribute("content", val);
+        }
+      }
+
       target[prop] = val;
       return true;
     },

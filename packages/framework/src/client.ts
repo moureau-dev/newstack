@@ -44,10 +44,12 @@ export class NewstackClient {
     }
 
     const description = document.querySelector("meta[name='description']");
+    const ogImage = document.querySelector("meta[property='og:image']");
 
     const page = {
       title: document.title,
       description: description?.getAttribute("content") || "",
+      image: ogImage?.getAttribute("content") || "",
       locale: document.documentElement.lang,
     } as NewstackClientContext["page"];
 

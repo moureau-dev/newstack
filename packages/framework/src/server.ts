@@ -381,6 +381,9 @@ export class NewstackServer {
             <meta name="description" content="${context.page.description || ""}">
             <meta name="og:description" content="${context.page.description || ""}">
 
+            ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
+            <meta name="twitter:image" content="${context.page.image}">` : ""}
+
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
             <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
             <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
@@ -423,6 +426,9 @@ export class NewstackServer {
 
             <meta name="description" content="${context.page.description || ""}">
             <meta name="og:description" content="${context.page.description || ""}">
+
+            ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
+            <meta name="twitter:image" content="${context.page.image}">` : ""}
         </head>
 
         <body>
