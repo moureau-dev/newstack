@@ -65,9 +65,15 @@ export class NewstackClient {
     const fingerprint =
       new URL(scriptSrc, location.origin).searchParams.get("fingerprint") ?? "";
 
+    const stateScript = document.querySelector<HTMLScriptElement>(
+      "script#__NEWSTACK_STATE__",
+    );
+    const state = JSON.parse(stateScript?.textContent || "{}");
+
     const ctx: Partial<NewstackClientContext> = {
       environment: "client",
       page,
+      project: state.__project ?? {},
       router,
       params: {},
       instances: new Proxy({} as Record<string, any>, {

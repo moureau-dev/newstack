@@ -123,6 +123,10 @@ const context = proxifyContext({
     get: (t, k) => (k in t ? t[k as string] : {}),
   }),
   page: {} as NewstackClientContext["page"],
+  project: {
+    ...loadFromEnv("NEWSTACK_PROJECT_"),
+    icons: {},
+  } as NewstackClientContext["project"],
   router: {} as NewstackClientContext["router"],
   fingerprint: hash,
 }) as NewstackServerContext & NewstackClientContext;
@@ -376,8 +380,9 @@ export class NewstackServer {
 
     const faviconHref = resolveHref(context.project.favicon);
 
-    const registrySnapshot = JSON.stringify(
-      Object.fromEntries(
+    const registrySnapshot = JSON.stringify({
+      __project: context.project,
+      ...Object.fromEntries(
         Array.from(this.renderer.components.entries())
           .filter(([hash]) => this.renderer.visibleHashes.has(hash))
           .map(([hash, { component }]) => [
@@ -385,7 +390,7 @@ export class NewstackServer {
             { state: serializeState(component) },
           ]),
       ),
-    );
+    });
 
     return `
       <!DOCTYPE html>
