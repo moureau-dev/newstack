@@ -20,9 +20,9 @@ export interface NewstackPage {
 export interface NewstackProject {
   domain: string;
   name: string;
-  icons: Record<IconSize, string>;
+  icons: Partial<Record<IconSize, string>>;
   favicon: string;
-  cdn: string;
+  cdn?: string;
 }
 
 export interface NewstackRouter {

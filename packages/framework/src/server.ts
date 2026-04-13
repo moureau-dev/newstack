@@ -362,6 +362,20 @@ export class NewstackServer {
       context.project.domain ? `https://${context.project.domain}` : "http://localhost",
     ).href;
 
+    const resolveHref = (href: string) =>
+      context.project.cdn ? new URL(href, context.project.cdn).href : href;
+
+    const iconLinks = Object.entries(context.project.icons ?? {})
+      .map(([size, href]) => {
+        const resolved = resolveHref(href);
+        const dimension = `${size}x${size}`;
+        return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
+            <link rel="icon" type="image/png" sizes="${dimension}" href="${resolved}">`;
+      })
+      .join("\n            ");
+
+    const faviconHref = resolveHref(context.project.favicon);
+
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
         Array.from(this.renderer.components.entries())
@@ -401,7 +415,8 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
 
-            <link rel="shortcut icon" href="${context.project.favicon}" type="image/png">
+            <link rel="shortcut icon" href="${faviconHref}" type="image/png">
+            ${iconLinks}
 
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
             <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
@@ -438,6 +453,20 @@ export class NewstackServer {
       context.project.domain ? `https://${context.project.domain}` : "http://localhost",
     ).href;
 
+    const resolveHref = (href: string) =>
+      context.project.cdn ? new URL(href, context.project.cdn).href : href;
+
+    const iconLinks = Object.entries(context.project.icons ?? {})
+      .map(([size, href]) => {
+        const resolved = resolveHref(href);
+        const dimension = `${size}x${size}`;
+        return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
+            <link rel="icon" type="image/png" sizes="${dimension}" href="${resolved}">`;
+      })
+      .join("\n            ");
+
+    const faviconHref = resolveHref(context.project.favicon);
+
     return `
       <!DOCTYPE html>
       <html lang="${context.page.locale || "en"}">
@@ -466,7 +495,8 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
 
-            <link rel="shortcut icon" href="${context.project.favicon}" type="image/png">
+            <link rel="shortcut icon" href="${faviconHref}" type="image/png">
+            ${iconLinks}
         </head>
 
         <body>
