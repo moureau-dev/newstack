@@ -33,6 +33,14 @@ export function proxifyContext(
 
       if (prop === "locale" && typeof val === "string") {
         document.documentElement.lang = val;
+
+        let meta = document.querySelector("meta[property='og:locale']");
+        if (!meta) {
+          meta = document.createElement("meta");
+          meta.setAttribute("property", "og:locale");
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute("content", val);
       }
 
       if (prop === "description" && typeof val === "string") {

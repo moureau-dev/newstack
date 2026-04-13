@@ -413,6 +413,7 @@ export class NewstackServer {
             <meta name="twitter:image" content="${context.page.image}">` : ""}
             <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
 
+            <meta property="og:locale" content="${context.page.locale || "en"}">
             <meta property="og:site_name" content="${context.project.name}">
             <meta property="og:type" content="website">
             <meta property="og:url" content="${pageUrl}">
@@ -497,6 +498,7 @@ export class NewstackServer {
             <meta name="twitter:image" content="${context.page.image}">` : ""}
             <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
 
+            <meta property="og:locale" content="${context.page.locale || "en"}">
             <meta property="og:site_name" content="${context.project.name}">
             <meta property="og:type" content="website">
             <meta property="og:url" content="${pageUrl}">
