@@ -17,6 +17,18 @@ export function proxifyContext(
 
       if (prop === "title" && typeof val === "string") {
         document.title = val;
+        for (const [attr, name] of [
+          ["property", "og:title"],
+          ["name", "twitter:title"],
+        ] as const) {
+          let meta = document.querySelector(`meta[${attr}='${name}']`);
+          if (!meta) {
+            meta = document.createElement("meta");
+            meta.setAttribute(attr, name);
+            document.head.appendChild(meta);
+          }
+          meta.setAttribute("content", val);
+        }
       }
 
       if (prop === "locale" && typeof val === "string") {
@@ -24,31 +36,42 @@ export function proxifyContext(
       }
 
       if (prop === "description" && typeof val === "string") {
-        let meta = document.querySelector("meta[name='description']");
-        if (!meta) {
-          meta = document.createElement("meta");
-          meta.setAttribute("name", "description");
-          document.head.appendChild(meta);
-        }
-        meta.setAttribute("content", val);
-      }
-
-      if (prop === "image" && typeof val === "string") {
-        for (const selector of [
-          "meta[property='og:image']",
-          "meta[name='twitter:image']",
-        ]) {
-          let meta = document.querySelector(selector);
+        for (const [attr, name] of [
+          ["name", "description"],
+          ["property", "og:description"],
+          ["name", "twitter:description"],
+        ] as const) {
+          let meta = document.querySelector(`meta[${attr}='${name}']`);
           if (!meta) {
             meta = document.createElement("meta");
-            const [attr, value] = selector.includes("property")
-              ? ["property", "og:image"]
-              : ["name", "twitter:image"];
-            meta.setAttribute(attr, value);
+            meta.setAttribute(attr, name);
             document.head.appendChild(meta);
           }
           meta.setAttribute("content", val);
         }
+      }
+
+      if (prop === "image" && typeof val === "string") {
+        for (const [attr, name] of [
+          ["property", "og:image"],
+          ["name", "twitter:image"],
+        ] as const) {
+          let meta = document.querySelector(`meta[${attr}='${name}']`);
+          if (!meta) {
+            meta = document.createElement("meta");
+            meta.setAttribute(attr, name);
+            document.head.appendChild(meta);
+          }
+          meta.setAttribute("content", val);
+        }
+
+        let card = document.querySelector("meta[name='twitter:card']");
+        if (!card) {
+          card = document.createElement("meta");
+          card.setAttribute("name", "twitter:card");
+          document.head.appendChild(card);
+        }
+        card.setAttribute("content", val ? "summary_large_image" : "summary");
       }
 
       target[prop] = val;

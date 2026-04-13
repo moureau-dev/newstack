@@ -357,6 +357,11 @@ export class NewstackServer {
     const hmrScript = this.hmrManager.clientInjection();
     const headInjections = this.renderer.head.serverHtml();
 
+    const pageUrl = new URL(
+      context.path ?? "/",
+      context.project.domain ? `https://${context.project.domain}` : "http://localhost",
+    ).href;
+
     const registrySnapshot = JSON.stringify(
       Object.fromEntries(
         Array.from(this.renderer.components.entries())
@@ -376,13 +381,27 @@ export class NewstackServer {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
             <title>${context.page.title}</title>
-            <meta name="og:title" content="${context.page.title}">
+            <meta property="og:title" content="${context.page.title}">
+            <meta name="twitter:title" content="${context.page.title}">
 
             <meta name="description" content="${context.page.description || ""}">
-            <meta name="og:description" content="${context.page.description || ""}">
+            <meta property="og:description" content="${context.page.description || ""}">
+            <meta name="twitter:description" content="${context.page.description || ""}">
 
             ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
             <meta name="twitter:image" content="${context.page.image}">` : ""}
+            <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
+
+            <meta property="og:site_name" content="${context.project.name}">
+            <meta property="og:type" content="website">
+            <meta property="og:url" content="${pageUrl}">
+            <link rel="canonical" href="${pageUrl}">
+
+            <meta name="apple-mobile-web-app-title" content="${context.project.name}">
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="mobile-web-app-capable" content="yes">
+
+            <link rel="shortcut icon" href="${context.project.favicon}" type="image/png">
 
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
             <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
@@ -414,6 +433,11 @@ export class NewstackServer {
     await this.prepare();
     const page = this.renderer.html(element);
 
+    const pageUrl = new URL(
+      context.path ?? "/",
+      context.project.domain ? `https://${context.project.domain}` : "http://localhost",
+    ).href;
+
     return `
       <!DOCTYPE html>
       <html lang="${context.page.locale || "en"}">
@@ -422,13 +446,27 @@ export class NewstackServer {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
             <title>${context.page.title}</title>
-            <meta name="og:title" content="${context.page.title}">
+            <meta property="og:title" content="${context.page.title}">
+            <meta name="twitter:title" content="${context.page.title}">
 
             <meta name="description" content="${context.page.description || ""}">
-            <meta name="og:description" content="${context.page.description || ""}">
+            <meta property="og:description" content="${context.page.description || ""}">
+            <meta name="twitter:description" content="${context.page.description || ""}">
 
             ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
             <meta name="twitter:image" content="${context.page.image}">` : ""}
+            <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
+
+            <meta property="og:site_name" content="${context.project.name}">
+            <meta property="og:type" content="website">
+            <meta property="og:url" content="${pageUrl}">
+            <link rel="canonical" href="${pageUrl}">
+
+            <meta name="apple-mobile-web-app-title" content="${context.project.name}">
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="mobile-web-app-capable" content="yes">
+
+            <link rel="shortcut icon" href="${context.project.favicon}" type="image/png">
         </head>
 
         <body>
