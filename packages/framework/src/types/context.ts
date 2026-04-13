@@ -23,6 +23,7 @@ export interface NewstackProject {
   icons: Partial<Record<IconSize, string>>;
   favicon: string;
   cdn?: string;
+  color?: string;
 }
 
 export interface NewstackRouter {

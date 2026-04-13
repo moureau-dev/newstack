@@ -422,6 +422,10 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
 
+            ${context.project.color ? `<meta name="theme-color" content="${context.project.color}">
+            <meta name="msapplication-TileColor" content="${context.project.color}">
+            <meta name="msapplication-navbutton-color" content="${context.project.color}">` : ""}
+
             <link rel="shortcut icon" href="${faviconHref}" type="image/png">
             ${iconLinks}
 
@@ -501,6 +505,10 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-title" content="${context.project.name}">
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
+
+            ${context.project.color ? `<meta name="theme-color" content="${context.project.color}">
+            <meta name="msapplication-TileColor" content="${context.project.color}">
+            <meta name="msapplication-navbutton-color" content="${context.project.color}">` : ""}
 
             <link rel="shortcut icon" href="${faviconHref}" type="image/png">
             ${iconLinks}
