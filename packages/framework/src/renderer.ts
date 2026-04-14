@@ -342,7 +342,9 @@ export class Renderer {
     const oldEl = container.firstElementChild;
 
     if (newEl && oldEl) {
-      patchElement(oldEl, newEl, newVNode, () => {});
+      patchElement(oldEl, newEl, newVNode, () => {
+        this.context.event = undefined;
+      });
     }
 
     this.head.flush();
@@ -385,9 +387,11 @@ export class Renderer {
     // patchElement's vnodeChildren align with the container's DOM children.
     const resolvedVnode = resolveToElementVNode(vnode) ?? vnode;
 
-    patchElement(container, newEl, resolvedVnode, () =>
-      this.updateComponent(component),
-    );
+    patchElement(container, newEl, resolvedVnode, (event) => {
+      this.context.event = event;
+      this.updateComponent(component);
+      this.context.event = undefined;
+    });
 
     this.head.flush(staticComponent.hash);
   }
@@ -675,7 +679,7 @@ function patchElement(
   oldEl: Element,
   newEl: Element,
   vnode?: VNode,
-  update: () => void = () => {},
+  update: (e: Event) => void = () => {},
 ) {
   // Update attributes
   const oldAttrs = oldEl.attributes;
@@ -712,7 +716,7 @@ function patchElement(
         oldEl[key] = (e: Event) => {
           e.preventDefault();
           val(e);
-          if (update) update();
+          if (update) update(e);
         };
       }
     });
@@ -738,7 +742,7 @@ function patchElement(
       (el as HTMLInputElement).checked = Boolean(object[property]);
       el.onchange = (e) => {
         object[property] = (e.target as HTMLInputElement).checked;
-        update();
+        update(e);
       };
     } else {
       el.value = String(object[property] ?? "");
@@ -746,7 +750,7 @@ function patchElement(
         const target = e.target as HTMLInputElement;
         object[property] =
           target.type === "number" ? Number(target.value) : target.value;
-        update();
+        update(e);
       };
     }
   }
