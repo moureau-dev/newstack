@@ -171,6 +171,8 @@ export class NewstackClient {
       this.patchLinks();
     }
 
+    this.assignElements();
+
     void (async () => {
       await component.prepare?.(this.context);
       await component.hydrate?.(this.context);
