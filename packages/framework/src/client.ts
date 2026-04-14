@@ -35,6 +35,8 @@ export class NewstackClient {
    */
   renderer: Renderer;
 
+  private mounted = false;
+
   constructor(root?: HTMLElement) {
     if (root) {
       this.root = root;
@@ -165,6 +167,7 @@ export class NewstackClient {
 
     if (!this.app) {
       this.app = component;
+      this.mounted = true;
       this.patchLinks();
     }
 
@@ -198,6 +201,12 @@ export class NewstackClient {
     if (!this.app) return;
 
     this.context.path = href;
+
+    if (this.mounted) {
+      this.renderer.updateComponent(this.app);
+      return;
+    }
+
     this.destroyComponents();
 
     const html = this.app.render?.(this.context) || {};
