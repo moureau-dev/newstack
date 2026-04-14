@@ -271,7 +271,8 @@ export class Renderer {
           ),
       )
       .filter(([, val]) => typeof val !== "function")
-      .map(([key, val]) => ` ${key}="${val}"`)
+      .filter(([, val]) => val !== false)
+      .map(([key, val]) => (val === true ? ` ${key}` : ` ${key}="${val}"`))
       .join("");
 
     let bindAttr = "";
