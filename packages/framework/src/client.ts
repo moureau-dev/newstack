@@ -163,6 +163,11 @@ export class NewstackClient {
 
     const component = this.renderer.mount(ComponentClass, container);
 
+    if (!this.app) {
+      this.app = component;
+      this.patchLinks();
+    }
+
     void (async () => {
       await component.prepare?.(this.context);
       await component.hydrate?.(this.context);
@@ -190,6 +195,8 @@ export class NewstackClient {
    * @param href The URL path to render.
    */
   async renderRoute(href: string) {
+    if (!this.app) return;
+
     this.context.path = href;
     this.destroyComponents();
 
