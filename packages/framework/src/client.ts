@@ -2,8 +2,6 @@ import { proxifyContext } from "./context";
 import type { Newstack, NewstackClientContext } from "./core";
 import { Renderer } from "./renderer";
 
-declare const __NEWSTACK_SETTINGS__: NewstackClientContext["settings"];
-
 /**
  * @description
  * NewstackClient is a class that initializes and manages the Newstack application on the client side.
@@ -37,10 +35,14 @@ export class NewstackClient {
    */
   renderer: Renderer;
 
-  constructor() {
-    this.root = document.getElementById("app") as HTMLElement;
-    if (!this.root) {
-      throw new Error("Root element with id 'app' not found.");
+  constructor(root?: HTMLElement) {
+    if (root) {
+      this.root = root;
+    } else {
+      this.root = document.getElementById("app") as HTMLElement;
+      if (!this.root) {
+        throw new Error("Root element with id 'app' not found.");
+      }
     }
 
     const description = document.querySelector("meta[name='description']");
@@ -79,13 +81,42 @@ export class NewstackClient {
       instances: new Proxy({} as Record<string, any>, {
         get: (t, k) => (k in t ? t[k as string] : {}),
       }),
-      settings: __NEWSTACK_SETTINGS__ ?? {},
+      settings: (globalThis as any).__NEWSTACK_SETTINGS__ ?? {},
       fingerprint,
     };
 
     this.context = proxifyContext(ctx, this) as NewstackClientContext;
 
     this.renderer = new Renderer(this.context);
+
+    (window as any).mount = (
+      ComponentClass: typeof Newstack,
+      _root?: HTMLElement,
+    ) => {
+      if ((window as any).__NEWSTACK) {
+        return (window as any).__NEWSTACK.mount(ComponentClass, _root);
+      }
+      window.addEventListener(
+        "newstack:ready",
+        () => (window as any).__NEWSTACK.mount(ComponentClass, _root),
+        { once: true },
+      );
+    };
+  }
+
+  static init(root?: HTMLElement): NewstackClient {
+    if ((window as any).__NEWSTACK) return (window as any).__NEWSTACK;
+
+    let el = root;
+    if (!el) {
+      el = document.createElement("div");
+      document.body.appendChild(el);
+    }
+
+    const client = new NewstackClient(el);
+    (window as any).__NEWSTACK = client;
+    window.dispatchEvent(new CustomEvent("newstack:ready", { detail: client }));
+    return client;
   }
 
   /**
@@ -115,7 +146,39 @@ export class NewstackClient {
 
     if (typeof window !== "undefined") {
       (window as any).__NEWSTACK = this;
+      window.dispatchEvent(new CustomEvent("newstack:ready", { detail: this }));
     }
+  }
+
+  mount(
+    ComponentClass: typeof Newstack,
+    _root?: HTMLElement,
+  ): { destroy: () => void } {
+    if (!ComponentClass.hash) {
+      (ComponentClass as any).hash = Math.random().toString(36).slice(2, 10);
+    }
+
+    const container = _root ?? document.createElement("div");
+    if (!_root) this.root.appendChild(container);
+
+    const component = this.renderer.mount(ComponentClass, container);
+
+    void (async () => {
+      await component.prepare?.(this.context);
+      await component.hydrate?.(this.context);
+    })();
+
+    return {
+      destroy: () => {
+        const hash = ComponentClass.hash;
+        component.destroy?.(this.context);
+        component.terminate?.(this.context);
+        this.renderer.components.delete(hash);
+        this.renderer.visibleHashes.delete(hash);
+        this.renderer.componentElements.delete(hash);
+        container.remove();
+      },
+    };
   }
 
   /**

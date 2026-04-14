@@ -392,6 +392,30 @@ export class Renderer {
     this.head.flush(staticComponent.hash);
   }
 
+  mount(ComponentClass: typeof Newstack, container: Element): Newstack {
+    const hash = ComponentClass.hash;
+    const component = proxify(new (ComponentClass as any)(), this);
+
+    this.components.set(hash, {
+      component,
+      reinitiate: () => {
+        const c = proxify(new (ComponentClass as any)(), this);
+        this.components.get(hash).component = c;
+        return c;
+      },
+    });
+
+    this.visibleHashes.add(hash);
+
+    const vnode = component.render(this.context);
+    container.innerHTML = this.html(vnode);
+
+    this.componentElements.set(hash, container.firstElementChild ?? container);
+    this.updateComponent(component);
+
+    return component;
+  }
+
   /**
    * @description
    * Sets up all components in the application, including the entrypoint component and its children.
