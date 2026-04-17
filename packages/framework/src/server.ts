@@ -315,44 +315,9 @@ export class NewstackServer {
         return c.body(files.get("client.css"));
       })
       .get("/manifest.webmanifest", (c) => {
-        const {
-          name,
-          shortName,
-          color,
-          backgroundColor,
-          display,
-          orientation,
-          scope,
-          icons,
-          cdn,
-        } = context.project;
-        const resolveHref = (href: string) =>
-          cdn ? new URL(href, cdn).href : href;
-
-        const manifest = {
-          name,
-          short_name: shortName ?? name,
-          theme_color: color || "#000000",
-          background_color: backgroundColor || "#ffffff",
-          display: display || "standalone",
-          orientation: orientation || "portrait",
-          scope: scope || "/",
-          start_url: "/",
-          icons: Object.entries(icons ?? {}).map(([size, href]) => {
-            const ext = `.${href.split(".").pop()}`;
-            return {
-              src: resolveHref(href),
-              sizes: `${size}x${size}`,
-              type: mimeTypes[ext] || "image/png",
-              purpose: "maskable any",
-            };
-          }),
-          splash_pages: null,
-        };
-
         c.header("Content-Type", "application/manifest+json");
         c.header("Cache-Control", "no-store");
-        return c.json(manifest);
+        return c.json(this.buildManager.manifest());
       })
       .get("/service-worker.js", (c) => {
         const routes = this.app

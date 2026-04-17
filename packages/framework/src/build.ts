@@ -408,22 +408,12 @@ self.addEventListener("fetch", staticStrategy);
 `;
   }
 
-  private async writeManifest(outDir: string): Promise<void> {
-    const {
-      name,
-      shortName,
-      color,
-      backgroundColor,
-      display,
-      orientation,
-      scope,
-      icons,
-      cdn,
-    } = this.deps.context.project;
-    const resolveHref = (href: string) =>
-      cdn ? new URL(href, cdn).href : href;
+  manifest(): object {
+    const { name, shortName, color, backgroundColor, display, orientation, scope, icons, cdn } = this.deps.context.project;
+    const resolveHref = (href: string) => cdn ? new URL(href, cdn).href : href;
+    const mime: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp" };
 
-    const manifest = {
+    return {
       name,
       short_name: shortName ?? name,
       theme_color: color || "#000000",
@@ -432,24 +422,19 @@ self.addEventListener("fetch", staticStrategy);
       orientation: orientation || "portrait",
       scope: scope || "/",
       start_url: "/",
-      icons: Object.entries(icons ?? {}).map(([size, href]) => {
-        const ext = `.${href.split(".").pop()}`;
-        const mime: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp" };
-        return {
-          src: resolveHref(href),
-          sizes: `${size}x${size}`,
-          type: mime[ext] || "image/png",
-          purpose: "maskable any",
-        };
-      }),
+      icons: Object.entries(icons ?? {}).map(([size, href]) => ({
+        src: resolveHref(href),
+        sizes: `${size}x${size}`,
+        type: mime[`.${href.split(".").pop()}`] || "image/png",
+        purpose: "maskable any",
+      })),
       splash_pages: null,
     };
+  }
 
-    await writeFile(
-      join(outDir, "manifest.webmanifest"),
-      JSON.stringify(manifest, null, 2),
-      "utf-8",
-    );
+  private async writeManifest(outDir: string): Promise<void> {
+    const manifest = this.manifest();
+    await writeFile(join(outDir, "manifest.webmanifest"), JSON.stringify(manifest, null, 2), "utf-8");
     console.log("Generated manifest.webmanifest");
   }
 
