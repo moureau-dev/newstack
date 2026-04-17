@@ -411,6 +411,7 @@ self.addEventListener("fetch", staticStrategy);
   private async writeManifest(outDir: string): Promise<void> {
     const {
       name,
+      shortName,
       color,
       backgroundColor,
       display,
@@ -424,19 +425,23 @@ self.addEventListener("fetch", staticStrategy);
 
     const manifest = {
       name,
-      short_name: name,
+      short_name: shortName ?? name,
       theme_color: color || "#000000",
       background_color: backgroundColor || "#ffffff",
       display: display || "standalone",
       orientation: orientation || "portrait",
       scope: scope || "/",
       start_url: "/",
-      icons: Object.entries(icons ?? {}).map(([size, href]) => ({
-        src: resolveHref(href),
-        sizes: `${size}x${size}`,
-        type: "image/png",
-        purpose: "maskable any",
-      })),
+      icons: Object.entries(icons ?? {}).map(([size, href]) => {
+        const ext = `.${href.split(".").pop()}`;
+        const mime: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp" };
+        return {
+          src: resolveHref(href),
+          sizes: `${size}x${size}`,
+          type: mime[ext] || "image/png",
+          purpose: "maskable any",
+        };
+      }),
       splash_pages: null,
     };
 
