@@ -80,6 +80,7 @@ async function createApp() {
     join(projectPath, ".env"),
     `# Environment variables
 NEWSTACK_PORT="3000"
+NEWSTACK_PROJECT_NAME="${projectName}"
 `,
   );
 
