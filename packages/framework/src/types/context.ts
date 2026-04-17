@@ -24,6 +24,7 @@ export interface NewstackProject {
   favicon: string;
   cdn?: string;
   color?: string;
+  shortName?: string;
   backgroundColor?: string;
   display?: "standalone" | "fullscreen" | "minimal-ui" | "browser";
   orientation?: "portrait" | "landscape" | "any";

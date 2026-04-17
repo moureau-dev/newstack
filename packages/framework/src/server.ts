@@ -317,6 +317,7 @@ export class NewstackServer {
       .get("/manifest.webmanifest", (c) => {
         const {
           name,
+          shortName,
           color,
           backgroundColor,
           display,
@@ -330,7 +331,7 @@ export class NewstackServer {
 
         const manifest = {
           name,
-          short_name: name,
+          short_name: shortName ?? name,
           theme_color: color || "#000000",
           background_color: backgroundColor || "#ffffff",
           display: display || "standalone",
