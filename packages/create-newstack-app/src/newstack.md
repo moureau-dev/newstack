@@ -59,33 +59,76 @@ this.items.push(x);              // re-renders — mutations in lifecycle method
 
 ---
 
+## Method Arguments & Context
+
+All component methods receive **exactly one argument: the context object**. This is a hard rule.
+
+```ts
+// ✅ correct
+method(context: NewstackClientContext) {}
+method({ event, router }: NewstackClientContext) {}
+
+// ❌ never do this
+method(id) {}
+method(context, id) {}
+method("string") {}
+```
+
+When calling a method manually, pass an object — it is **merged into the context**:
+
+```tsx
+// ✅ correct — id is merged into context, router/event/etc. are still accessible
+<button onclick={() => this.removeTodo({ id: todo.id })}>
+
+// ❌ wrong — positional or non-object args are not injected
+<button onclick={() => this.removeTodo(todo.id)}>
+```
+
+```ts
+removeTodo({ id }: NewstackClientContext & { id: string }) {
+  this.todos = this.todos.filter(t => t.id !== id);
+}
+```
+
+---
+
 ## Event Handlers
 
 Two valid forms:
 
 ```tsx
-// Arrow function — works as expected
+// Arrow function — inline logic, full control
 <button onclick={() => this.count++}>+</button>
 
-// Method reference — auto-binds this and passes context as first arg
+// Method reference — auto-binds this, passes full context as first arg
 <button onclick={this.handleClick}>click</button>
 ```
 
-When using method reference form, the method receives the full context (including `event`) as its first argument:
+With method reference, the method receives the full context including the DOM `event`:
 
 ```tsx
 handleClick({ event, router }: NewstackClientContext) {
-  console.log(event.target); // the DOM event
-  this.count++;
-}
-
-// Second param still works for backwards compatibility
-handleClick(context: NewstackClientContext, e: Event) {
+  console.log(event.target);
   this.count++;
 }
 ```
 
-`e.preventDefault()` is called automatically on all events.
+`e.preventDefault()` is called automatically on all events. For "submit on Enter" behaviour, use a `<form>` with `onsubmit` instead of listening for `onkeydown` — it handles Enter natively, works with accessibility, and is already prevented by default:
+
+```tsx
+<form onsubmit={this.addTodo}>
+  <input bind={{ object: this, property: "newTodo" }} />
+  <button type="submit">Add</button>
+</form>
+```
+
+```ts
+addTodo({ event }: NewstackClientContext) {
+  if (!this.newTodo.trim()) return;
+  this.todos = [...this.todos, this.newTodo];
+  this.newTodo = "";
+}
+```
 
 ---
 
@@ -120,6 +163,16 @@ form;
 - Works with `oninput` / `onchange` under the hood — don't add those manually.
 - Nested objects must be **at minimum initialized to `{}`** — binding to a property of `undefined` will throw.
 
+**CDN / no-build usage:** the `bind={this.prop}` shorthand relies on a build-time transform that is not available when using Newstack via CDN. Use the explicit object form instead:
+
+```tsx
+// ✅ works everywhere including CDN
+<input bind={{ object: this, property: 'newTodo' }} />
+
+// ❌ only works with the esbuild bundler
+<input bind={this.newTodo} />
+```
+
 ---
 
 ## Context
@@ -132,6 +185,11 @@ context.environment       // "server" | "client"
 context.page.title        // sets <title>
 context.params            // route params e.g. { id: "42" }
 context.fingerprint       // build hash — useful for cache-busting
+context.project.name      // site name from NEWSTACK_PROJECT_NAME
+context.project.domain    // domain from NEWSTACK_PROJECT_DOMAIN
+context.project.favicon   // favicon path from NEWSTACK_PROJECT_FAVICON
+context.project.cdn       // CDN base URL from NEWSTACK_PROJECT_CDN
+context.project.color     // theme color from NEWSTACK_PROJECT_COLOR
 context.deps              // injected dependencies (db, logger, etc.)
 context.instances         // named component instances registered via key=""
 context.instances.auth    // safe — returns {} if not yet registered
@@ -144,6 +202,19 @@ context.event             // DOM Event — set when called from an event handler
 context.path              // request path
 context.secrets           // server-only secrets from env
 ```
+
+Project metadata is set via env vars prefixed with `NEWSTACK_PROJECT_`:
+
+```bash
+# .env
+NEWSTACK_PROJECT_NAME="My App"
+NEWSTACK_PROJECT_DOMAIN="myapp.com"
+NEWSTACK_PROJECT_FAVICON="/favicon.png"
+NEWSTACK_PROJECT_COLOR="#101010"
+NEWSTACK_PROJECT_CDN="https://cdn.myapp.com"
+```
+
+These are automatically injected into OG tags, Twitter Cards, PWA meta tags, favicon and icon links in the SSR template.
 
 ---
 
@@ -203,6 +274,8 @@ export class UserList extends Newstack {
 ---
 
 ## Component Instances (`key` + `context.instances`)
+
+> **`key` is not for list iteration.** Unlike React, Newstack does not use `key` to reconcile list items — it has no meaning on plain elements or in `.map()` calls. `key` only does something when placed on a **class component** — it registers that instance in `context.instances` so other components can access it by name.
 
 Register a component by name so other components can access it via `context.instances`:
 
@@ -301,6 +374,86 @@ client.start(new App());
 
 ---
 
+## CDN / No-Build Usage
+
+Newstack can be used directly in a browser without any build step via Babel Standalone:
+
+```html
+<html>
+  <body>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel" data-type="module">
+      /* @jsxRuntime classic */
+      /* @jsx h */
+      /* @jsxFrag Fragment */
+
+      import Newstack, { NewstackClient } from "https://cdn.jsdelivr.net/npm/@moureau/newstack/dist/index.min.js";
+      import { h, Fragment } from "https://cdn.jsdelivr.net/npm/@moureau/newstack/dist/jsx-shim.js";
+
+      NewstackClient.init();
+
+      class App extends Newstack {
+        value = "";
+
+        render() {
+          return (
+            <div>
+              <input bind={{ object: this, property: "value" }} />
+              <p>You typed: {this.value}</p>
+            </div>
+          );
+        }
+      }
+
+      window.mount(App, document.body);
+    </script>
+  </body>
+</html>
+```
+
+**Key differences from the bundled version:**
+- Import `h` and `Fragment` manually from `jsx-shim.js` and declare the JSX pragmas at the top of each script.
+- Use `bind={{ object: this, property: 'prop' }}` instead of `bind={this.prop}` — the shorthand requires the esbuild transform which is not available without a build step.
+- No SSR — components mount client-side only via `mount()`.
+- `onclick={this.method}` shorthand also requires the build transform; use `onclick={() => this.method({})}` instead.
+
+---
+
+## Mounting Components Imperatively
+
+Use `mount()` to render a Newstack component into any DOM element without a full SSR app — useful for micro-frontends or embedding into existing pages.
+
+```ts
+import { NewstackClient } from "newstack";
+import { Widget } from "./Widget";
+
+// Get or create the shared client instance
+const client = NewstackClient.init();
+
+// Mount a component into a specific element
+const { destroy } = client.mount(Widget, document.getElementById("widget"));
+
+// Clean up when done
+destroy();
+```
+
+- `NewstackClient.init()` returns the existing client if already running, or creates a new one.
+- Components mounted this way go through `prepare` and `hydrate` normally.
+- `destroy()` calls the component's `destroy`/`terminate` and removes the element.
+- Listen for `window.newstack:ready` if mounting before the client has started:
+
+```ts
+window.addEventListener("newstack:ready", () => {
+  window.mount(Widget, document.getElementById("widget"));
+}, { once: true });
+
+// or use the global shorthand (available after client.js loads):
+window.mount(Widget, document.getElementById("widget"));
+```
+
+---
+
 ## Stateless Function Components
 
 Plain functions returning JSX work as `<MyComponent />` — no class, no lifecycle, no reactivity.
@@ -341,6 +494,30 @@ export class Page extends Newstack {
 Caller-supplied keys override context values — `this.renderHeader({ router: customRouter })` still works.
 
 ---
+
+## Passing Children to Components
+
+JSX children are passed as props, not as `this.children`. Class components do not receive children automatically — use a **function component** as the layout wrapper and destructure `children` from its props:
+
+```tsx
+// ✅ correct — function component receives children as props
+export function Layout({ children }) {
+  return (
+    <main>
+      <Navbar />
+      {children}
+      <Footer />
+    </main>
+  );
+}
+
+// ❌ wrong — this.children does not exist on class components
+export class Layout extends Newstack {
+  render() {
+    return <main>{this.children}</main>; // undefined
+  }
+}
+```
 
 ## Function Component Layout Wrappers
 
@@ -403,10 +580,10 @@ export class UserList extends Newstack {
 
 ```tsx
 // ✅
-<div class="box" onclick={() => this.open = true}>
+<div class="box" style="color: red" onclick={() => this.open = true}>
 
-// ❌
-<div className="box" onClick={() => this.open = true}>
+// ❌ — style must be a string, not an object
+<div className="box" style={{ color: 'red' }} onClick={() => this.open = true}>
 
 // Fragments
 <>
@@ -488,10 +665,13 @@ export default {
 | `this.list.push(x)` in `update()` outside of an event | `update` is not batched — push won't trigger a re-render there. Use `this.list = [...this.list, x]` instead. |
 | `onClick={...}` | `onclick={...}` |
 | `className="foo"` | `class="foo"` |
+| `style={{ color: 'red' }}` | `style="color: red"` — styles are strings, not objects |
+| `onkeydown` to detect Enter on an input | Wrap in a `<form onsubmit={this.handleSubmit}>` — form submit fires on Enter automatically and is already preventDefault'd |
 | `import { h } from "@newstack/jsx"` | Not needed — injected automatically |
 | Accessing `window` in `prepare()` | Only safe in `hydrate()` / `update()` |
 | Returning multiple root elements without a wrapper | Use `<>...</>` fragment syntax |
 | `handleClick(ctx, e)` to access event | `handleClick({ event })` — event is on context |
+| `key` on list items like React | `key` is not for reconciliation — it only registers a class component in `context.instances` |
 
 ### update()
 
