@@ -389,35 +389,8 @@ export class NewstackServer {
     const hmrScript = this.hmrManager.clientInjection();
     const headInjections = this.renderer.head.serverHtml();
 
-    const pageUrl = new URL(
-      context.path ?? "/",
-      context.project.domain
-        ? `https://${context.project.domain}`
-        : "http://localhost",
-    ).href;
-
-    const resolveHref = (href: string) =>
-      context.project.cdn ? new URL(href, context.project.cdn).href : href;
-
-    const iconLinks = Object.entries(context.project.icons ?? {})
-      .map(([size, href]) => {
-        const resolved = resolveHref(href);
-        const dimension = `${size}x${size}`;
-        const ext = `.${href.split(".").pop()}`;
-        const type = mimeTypes[ext] || "image/png";
-        return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
-            <link rel="icon" type="${type}" sizes="${dimension}" href="${resolved}">`;
-      })
-      .join("\n            ");
-
-    const faviconHref = resolveHref(context.project.favicon);
-
-    const mode =
-      process.env.NEWSTACK_SSG === "true"
-        ? "ssg"
-        : process.env.NEWSTACK_SPA === "true"
-          ? "spa"
-          : "ssr";
+    const mode = process.env.NEWSTACK_SSG === "true" ? "ssg"
+      : process.env.NEWSTACK_SPA === "true" ? "spa" : "ssr";
 
     const registrySnapshot = JSON.stringify({
       __project: context.project,
@@ -425,65 +398,22 @@ export class NewstackServer {
       ...Object.fromEntries(
         Array.from(this.renderer.components.entries())
           .filter(([hash]) => this.renderer.visibleHashes.has(hash))
-          .map(([hash, { component }]) => [
-            hash,
-            { state: serializeState(component) },
-          ]),
+          .map(([hash, { component }]) => [hash, { state: serializeState(component) }]),
       ),
     });
+
+    const extras = `
+            <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
+            <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
+            <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
+            ${headInjections}
+            ${hmrScript}`;
 
     return `
       <!DOCTYPE html>
       <html lang="${context.page.locale || "en"}">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-            <title>${context.page.title}</title>
-            <meta property="og:title" content="${context.page.title}">
-            <meta name="twitter:title" content="${context.page.title}">
-
-            <meta name="description" content="${context.page.description || ""}">
-            <meta property="og:description" content="${context.page.description || ""}">
-            <meta name="twitter:description" content="${context.page.description || ""}">
-
-            ${
-              context.page.image
-                ? `<meta property="og:image" content="${context.page.image}">
-            <meta name="twitter:image" content="${context.page.image}">`
-                : ""
-            }
-            <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
-
-            <meta property="og:locale" content="${context.page.locale || "en"}">
-            <meta property="og:site_name" content="${context.project.name}">
-            <meta property="og:type" content="website">
-            <meta property="og:url" content="${pageUrl}">
-            <link rel="canonical" href="${pageUrl}">
-
-            <meta name="apple-mobile-web-app-title" content="${context.project.name}">
-            <meta name="apple-mobile-web-app-capable" content="yes">
-            <meta name="mobile-web-app-capable" content="yes">
-
-            ${
-              context.project.color
-                ? `<meta name="theme-color" content="${context.project.color}">
-            <meta name="msapplication-TileColor" content="${context.project.color}">
-            <meta name="msapplication-navbutton-color" content="${context.project.color}">`
-                : ""
-            }
-
-            <link rel="manifest" href="/manifest.webmanifest">
-            <link rel="shortcut icon" href="${faviconHref}" type="${mimeTypes[`.${faviconHref.split(".").pop()}`] || "image/png"}">
-            ${iconLinks}
-
-      	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
-            <link rel="stylesheet" href="/client.css${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></link>
-            <script id="__NEWSTACK_STATE__" type="application/json">${registrySnapshot}</script>
-            ${headInjections}
-            ${hmrScript}
+        <head>${this.buildManager.headHtml(extras)}
         </head>
-
         <body>
           <div id="app">
               ${page}
@@ -507,75 +437,11 @@ export class NewstackServer {
     await this.prepare();
     const page = this.renderer.html(element);
 
-    const pageUrl = new URL(
-      context.path ?? "/",
-      context.project.domain
-        ? `https://${context.project.domain}`
-        : "http://localhost",
-    ).href;
-
-    const resolveHref = (href: string) =>
-      context.project.cdn ? new URL(href, context.project.cdn).href : href;
-
-    const iconLinks = Object.entries(context.project.icons ?? {})
-      .map(([size, href]) => {
-        const resolved = resolveHref(href);
-        const dimension = `${size}x${size}`;
-        const ext = `.${href.split(".").pop()}`;
-        const type = mimeTypes[ext] || "image/png";
-        return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
-            <link rel="icon" type="${type}" sizes="${dimension}" href="${resolved}">`;
-      })
-      .join("\n            ");
-
-    const faviconHref = resolveHref(context.project.favicon);
-
     return `
       <!DOCTYPE html>
       <html lang="${context.page.locale || "en"}">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-            <title>${context.page.title}</title>
-            <meta property="og:title" content="${context.page.title}">
-            <meta name="twitter:title" content="${context.page.title}">
-
-            <meta name="description" content="${context.page.description || ""}">
-            <meta property="og:description" content="${context.page.description || ""}">
-            <meta name="twitter:description" content="${context.page.description || ""}">
-
-            ${
-              context.page.image
-                ? `<meta property="og:image" content="${context.page.image}">
-            <meta name="twitter:image" content="${context.page.image}">`
-                : ""
-            }
-            <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
-
-            <meta property="og:locale" content="${context.page.locale || "en"}">
-            <meta property="og:site_name" content="${context.project.name}">
-            <meta property="og:type" content="website">
-            <meta property="og:url" content="${pageUrl}">
-            <link rel="canonical" href="${pageUrl}">
-
-            <meta name="apple-mobile-web-app-title" content="${context.project.name}">
-            <meta name="apple-mobile-web-app-capable" content="yes">
-            <meta name="mobile-web-app-capable" content="yes">
-
-            ${
-              context.project.color
-                ? `<meta name="theme-color" content="${context.project.color}">
-            <meta name="msapplication-TileColor" content="${context.project.color}">
-            <meta name="msapplication-navbutton-color" content="${context.project.color}">`
-                : ""
-            }
-
-            <link rel="manifest" href="/manifest.webmanifest">
-            <link rel="shortcut icon" href="${faviconHref}" type="${mimeTypes[`.${faviconHref.split(".").pop()}`] || "image/png"}">
-            ${iconLinks}
+        <head>${this.buildManager.headHtml()}
         </head>
-
         <body>
           <div id="app">
               ${page}

@@ -432,6 +432,67 @@ self.addEventListener("fetch", staticStrategy);
     };
   }
 
+  headHtml(extras = ""): string {
+    const { context } = this.deps;
+    const mime: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp", ".ico": "image/x-icon" };
+
+    const pageUrl = new URL(
+      context.path ?? "/",
+      context.project.domain ? `https://${context.project.domain}` : "http://localhost",
+    ).href;
+
+    const resolveHref = (href: string) =>
+      context.project.cdn ? new URL(href, context.project.cdn).href : href;
+
+    const faviconHref = resolveHref(context.project.favicon ?? "");
+    const faviconType = mime[`.${faviconHref.split(".").pop()}`] || "image/png";
+
+    const iconLinks = Object.entries(context.project.icons ?? {})
+      .map(([size, href]) => {
+        const resolved = resolveHref(href);
+        const type = mime[`.${href.split(".").pop()}`] || "image/png";
+        const dimension = `${size}x${size}`;
+        return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
+            <link rel="icon" type="${type}" sizes="${dimension}" href="${resolved}">`;
+      })
+      .join("\n            ");
+
+    return `
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+            <title>${context.page.title ?? ""}</title>
+            <meta property="og:title" content="${context.page.title ?? ""}">
+            <meta name="twitter:title" content="${context.page.title ?? ""}">
+
+            <meta name="description" content="${context.page.description || ""}">
+            <meta property="og:description" content="${context.page.description || ""}">
+            <meta name="twitter:description" content="${context.page.description || ""}">
+
+            ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
+            <meta name="twitter:image" content="${context.page.image}">` : ""}
+            <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
+
+            <meta property="og:locale" content="${context.page.locale || "en"}">
+            <meta property="og:site_name" content="${context.project.name ?? ""}">
+            <meta property="og:type" content="website">
+            <meta property="og:url" content="${pageUrl}">
+            <link rel="canonical" href="${pageUrl}">
+
+            <meta name="apple-mobile-web-app-title" content="${context.project.name ?? ""}">
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="mobile-web-app-capable" content="yes">
+
+            ${context.project.color ? `<meta name="theme-color" content="${context.project.color}">
+            <meta name="msapplication-TileColor" content="${context.project.color}">
+            <meta name="msapplication-navbutton-color" content="${context.project.color}">` : ""}
+
+            <link rel="manifest" href="/manifest.webmanifest">
+            <link rel="shortcut icon" href="${faviconHref}" type="${faviconType}">
+            ${iconLinks}
+            ${extras}`;
+  }
+
   private async writeManifest(outDir: string): Promise<void> {
     const manifest = this.manifest();
     await writeFile(join(outDir, "manifest.webmanifest"), JSON.stringify(manifest, null, 2), "utf-8");
