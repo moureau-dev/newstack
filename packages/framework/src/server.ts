@@ -338,12 +338,15 @@ export class NewstackServer {
           orientation: orientation || "portrait",
           scope: scope || "/",
           start_url: "/",
-          icons: Object.entries(icons ?? {}).map(([size, href]) => ({
-            src: resolveHref(href),
-            sizes: `${size}x${size}`,
-            type: "image/png",
-            purpose: "maskable any",
-          })),
+          icons: Object.entries(icons ?? {}).map(([size, href]) => {
+            const ext = `.${href.split(".").pop()}`;
+            return {
+              src: resolveHref(href),
+              sizes: `${size}x${size}`,
+              type: mimeTypes[ext] || "image/png",
+              purpose: "maskable any",
+            };
+          }),
           splash_pages: null,
         };
 
@@ -435,8 +438,10 @@ export class NewstackServer {
       .map(([size, href]) => {
         const resolved = resolveHref(href);
         const dimension = `${size}x${size}`;
+        const ext = `.${href.split(".").pop()}`;
+        const type = mimeTypes[ext] || "image/png";
         return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
-            <link rel="icon" type="image/png" sizes="${dimension}" href="${resolved}">`;
+            <link rel="icon" type="${type}" sizes="${dimension}" href="${resolved}">`;
       })
       .join("\n            ");
 
@@ -504,7 +509,7 @@ export class NewstackServer {
             }
 
             <link rel="manifest" href="/manifest.webmanifest">
-            <link rel="shortcut icon" href="${faviconHref}" type="image/png">
+            <link rel="shortcut icon" href="${faviconHref}" type="${mimeTypes[`.${faviconHref.split(".").pop()}`] || "image/png"}">
             ${iconLinks}
 
       	    <script type="module" src="/client.js${process.env.NEWSTACK_WATCH === "true" ? "" : `?fingerprint=${hash}`}"></script>
@@ -551,8 +556,10 @@ export class NewstackServer {
       .map(([size, href]) => {
         const resolved = resolveHref(href);
         const dimension = `${size}x${size}`;
+        const ext = `.${href.split(".").pop()}`;
+        const type = mimeTypes[ext] || "image/png";
         return `<link rel="apple-touch-icon" sizes="${dimension}" href="${resolved}">
-            <link rel="icon" type="image/png" sizes="${dimension}" href="${resolved}">`;
+            <link rel="icon" type="${type}" sizes="${dimension}" href="${resolved}">`;
       })
       .join("\n            ");
 
@@ -600,7 +607,7 @@ export class NewstackServer {
             }
 
             <link rel="manifest" href="/manifest.webmanifest">
-            <link rel="shortcut icon" href="${faviconHref}" type="image/png">
+            <link rel="shortcut icon" href="${faviconHref}" type="${mimeTypes[`.${faviconHref.split(".").pop()}`] || "image/png"}">
             ${iconLinks}
         </head>
 
