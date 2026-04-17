@@ -252,19 +252,21 @@ export class NewstackServer {
    * If the file is not found, it returns an empty string.
    *
    * @param {string} name - The name of the file to handle (e.g., "favicon.ico", "style.css").
-   * @returns {Promise<string>} - The content of the file as a string.
+   * @returns {Promise<Buffer | null>} - The content of the file as a Buffer or null if not found.
    */
-  private async handleFile(name: string): Promise<string> {
+  private async handleFile(name: string): Promise<Buffer | null> {
     const dynamic = ["favico.ico", "style.css"].includes(name);
-    if (dynamic) {
-      return "";
-    }
+    if (dynamic) return null;
 
     const isPublic = !name.startsWith("client-") && !name.startsWith("server-");
 
     const filePath = join(__dirname, isPublic ? "../public/" : "", name);
-    const file = await readFile(filePath, "utf-8").catch(() => "");
-    return file;
+
+    try {
+      return await readFile(filePath); // ❗ no encoding = Buffer
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -311,6 +313,56 @@ export class NewstackServer {
         if (!dev) c.header("X-Newstack-Fingerprint", hash);
 
         return c.body(files.get("client.css"));
+      })
+      .get("/manifest.webmanifest", (c) => {
+        const {
+          name,
+          color,
+          backgroundColor,
+          display,
+          orientation,
+          scope,
+          icons,
+          cdn,
+        } = context.project;
+        const resolveHref = (href: string) =>
+          cdn ? new URL(href, cdn).href : href;
+
+        const manifest = {
+          name,
+          short_name: name,
+          theme_color: color || "#000000",
+          background_color: backgroundColor || "#ffffff",
+          display: display || "standalone",
+          orientation: orientation || "portrait",
+          scope: scope || "/",
+          start_url: "/",
+          icons: Object.entries(icons ?? {}).map(([size, href]) => ({
+            src: resolveHref(href),
+            sizes: `${size}x${size}`,
+            type: "image/png",
+            purpose: "maskable any",
+          })),
+          splash_pages: null,
+        };
+
+        c.header("Content-Type", "application/manifest+json");
+        c.header("Cache-Control", "no-store");
+        return c.json(manifest);
+      })
+      .get("/service-worker.js", (c) => {
+        const routes = this.app
+          ? this.buildManager.discoverRoutes(this.app)
+          : [];
+        const mode =
+          process.env.NEWSTACK_SSG === "true"
+            ? "ssg"
+            : process.env.NEWSTACK_SPA === "true"
+              ? "spa"
+              : "ssr";
+        c.header("Content-Type", "application/javascript");
+        c.header("Cache-Control", "no-store");
+        return c.body(this.buildManager.serviceWorkerScript(routes, mode));
       });
   }
 
@@ -327,11 +379,16 @@ export class NewstackServer {
       const { path } = c.req;
       // Handle files
       if (path.includes(".")) {
-        const result = await this.handleFile(path.slice(1));
+        const result = (await this.handleFile(
+          path.slice(1),
+        )) as unknown as ArrayBuffer;
         if (!result) return c.notFound();
 
         const end = path.split(".").pop() || "";
-        c.header("Content-Type", mimeTypes[`.${end}`] || "text/plain");
+        c.header(
+          "Content-Type",
+          mimeTypes[`.${end}`] || "application/octet-stream",
+        );
 
         return c.body(result);
       }
@@ -365,7 +422,9 @@ export class NewstackServer {
 
     const pageUrl = new URL(
       context.path ?? "/",
-      context.project.domain ? `https://${context.project.domain}` : "http://localhost",
+      context.project.domain
+        ? `https://${context.project.domain}`
+        : "http://localhost",
     ).href;
 
     const resolveHref = (href: string) =>
@@ -382,8 +441,16 @@ export class NewstackServer {
 
     const faviconHref = resolveHref(context.project.favicon);
 
+    const mode =
+      process.env.NEWSTACK_SSG === "true"
+        ? "ssg"
+        : process.env.NEWSTACK_SPA === "true"
+          ? "spa"
+          : "ssr";
+
     const registrySnapshot = JSON.stringify({
       __project: context.project,
+      __worker: { enabled: true, mode },
       ...Object.fromEntries(
         Array.from(this.renderer.components.entries())
           .filter(([hash]) => this.renderer.visibleHashes.has(hash))
@@ -409,8 +476,12 @@ export class NewstackServer {
             <meta property="og:description" content="${context.page.description || ""}">
             <meta name="twitter:description" content="${context.page.description || ""}">
 
-            ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
-            <meta name="twitter:image" content="${context.page.image}">` : ""}
+            ${
+              context.page.image
+                ? `<meta property="og:image" content="${context.page.image}">
+            <meta name="twitter:image" content="${context.page.image}">`
+                : ""
+            }
             <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
 
             <meta property="og:locale" content="${context.page.locale || "en"}">
@@ -423,10 +494,15 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
 
-            ${context.project.color ? `<meta name="theme-color" content="${context.project.color}">
+            ${
+              context.project.color
+                ? `<meta name="theme-color" content="${context.project.color}">
             <meta name="msapplication-TileColor" content="${context.project.color}">
-            <meta name="msapplication-navbutton-color" content="${context.project.color}">` : ""}
+            <meta name="msapplication-navbutton-color" content="${context.project.color}">`
+                : ""
+            }
 
+            <link rel="manifest" href="/manifest.webmanifest">
             <link rel="shortcut icon" href="${faviconHref}" type="image/png">
             ${iconLinks}
 
@@ -462,7 +538,9 @@ export class NewstackServer {
 
     const pageUrl = new URL(
       context.path ?? "/",
-      context.project.domain ? `https://${context.project.domain}` : "http://localhost",
+      context.project.domain
+        ? `https://${context.project.domain}`
+        : "http://localhost",
     ).href;
 
     const resolveHref = (href: string) =>
@@ -494,8 +572,12 @@ export class NewstackServer {
             <meta property="og:description" content="${context.page.description || ""}">
             <meta name="twitter:description" content="${context.page.description || ""}">
 
-            ${context.page.image ? `<meta property="og:image" content="${context.page.image}">
-            <meta name="twitter:image" content="${context.page.image}">` : ""}
+            ${
+              context.page.image
+                ? `<meta property="og:image" content="${context.page.image}">
+            <meta name="twitter:image" content="${context.page.image}">`
+                : ""
+            }
             <meta name="twitter:card" content="${context.page.image ? "summary_large_image" : "summary"}">
 
             <meta property="og:locale" content="${context.page.locale || "en"}">
@@ -508,10 +590,15 @@ export class NewstackServer {
             <meta name="apple-mobile-web-app-capable" content="yes">
             <meta name="mobile-web-app-capable" content="yes">
 
-            ${context.project.color ? `<meta name="theme-color" content="${context.project.color}">
+            ${
+              context.project.color
+                ? `<meta name="theme-color" content="${context.project.color}">
             <meta name="msapplication-TileColor" content="${context.project.color}">
-            <meta name="msapplication-navbutton-color" content="${context.project.color}">` : ""}
+            <meta name="msapplication-navbutton-color" content="${context.project.color}">`
+                : ""
+            }
 
+            <link rel="manifest" href="/manifest.webmanifest">
             <link rel="shortcut icon" href="${faviconHref}" type="image/png">
             ${iconLinks}
         </head>
@@ -590,7 +677,9 @@ export class NewstackServer {
       const { path } = c.req;
 
       if (path.includes(".")) {
-        const result = await this.handleFile(path.slice(1));
+        const result = (await this.handleFile(
+          path.slice(1),
+        )) as unknown as ArrayBuffer;
         if (!result) return c.notFound();
         const end = path.split(".").pop() || "";
         c.header("Content-Type", mimeTypes[`.${end}`] || "text/plain");

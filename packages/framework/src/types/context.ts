@@ -24,6 +24,10 @@ export interface NewstackProject {
   favicon: string;
   cdn?: string;
   color?: string;
+  backgroundColor?: string;
+  display?: "standalone" | "fullscreen" | "minimal-ui" | "browser";
+  orientation?: "portrait" | "landscape" | "any";
+  scope?: string;
 }
 
 export interface NewstackRouter {
@@ -48,8 +52,15 @@ export interface NewstackSecrets
   extends Record<string, string | number | boolean> {}
 export interface NewstackDependencies extends Record<string, any> {}
 
-// biome-ignore lint/suspicious/noEmptyInterface:
-export interface NewstackWorker {}
+export interface NewstackWorker {
+  enabled: boolean;
+  mode: "ssr" | "ssg" | "spa";
+  online: boolean;
+  responsive: boolean;
+  registration: ServiceWorkerRegistration | null;
+  installation: Event | null;
+  queues: Record<string, any[]>;
+}
 
 /**
  * Collection of instances of Newstack classes that can be used to store

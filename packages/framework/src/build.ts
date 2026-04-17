@@ -131,6 +131,8 @@ export class BuildManager {
 
     if (shouldHydrate) await this.copyClientFiles(outDir);
     await this.copyPublicDirectory(outDir);
+    await this.writeManifest(outDir);
+    await this.writeServiceWorker(outDir, Array.from(visitedPaths), "ssg");
 
     console.log("\nSSG build complete!");
     console.log(`Generated ${visitedPaths.size} pages in ${outDir}`);
@@ -168,6 +170,8 @@ export class BuildManager {
 
     await writeFile(join(outDir, "index.html"), html, "utf-8");
     await this.copyPublicDirectory(outDir);
+    await this.writeManifest(outDir);
+    await this.writeServiceWorker(outDir, [], "spa");
 
     console.log("SPA build complete!");
     console.log(`Output: ${outDir}`);
@@ -215,7 +219,7 @@ export class BuildManager {
     await writeFile(dirPath, html, "utf-8");
   }
 
-  private discoverRoutes(app: Newstack): string[] {
+  discoverRoutes(app: Newstack): string[] {
     const routes: string[] = [];
 
     const traverse = (vnode: any) => {
@@ -255,6 +259,203 @@ export class BuildManager {
       match = hrefRegex.exec(html);
     }
     return [...new Set(links)];
+  }
+
+  serviceWorkerScript(routes: string[], mode: string): string {
+    const { fingerprint, context } = this.deps;
+    const dev = process.env.NEWSTACK_WATCH === "true";
+
+    const swContext = {
+      environment: dev ? "development" : "production",
+      mode,
+      fingerprint,
+      project: { ...context.project },
+      settings: context.settings || {},
+      worker: {
+        enabled: true,
+        fetching: false,
+        preload: routes,
+        staleWhileRevalidate: [],
+        cacheFirst: [],
+        headers: {},
+        api: "",
+        cdn: context.project?.cdn || "",
+        protocol: "https",
+        queues: {},
+      },
+    };
+
+    return `self.context = ${JSON.stringify(swContext, null, 2)};
+
+async function load(event) {
+  const response = await event.preloadResponse;
+  if (response) return response;
+  return fetch(event.request);
+}
+
+function match(serializedMatcher, url) {
+  const matcher = JSON.parse(serializedMatcher);
+  return new RegExp(matcher.source, matcher.flags).test(url.href);
+}
+
+function withAPI(url) {
+  const fragments = url.split("?");
+  let path = fragments[0];
+  const query = fragments[1];
+  if (path.includes(".")) return url;
+  return query ? [url, \`\${path}?\${query}\`] : [url, path];
+}
+
+async function extractData(response) {
+  const html = await response.clone().text();
+  const parts = html.split('<script id="__NEWSTACK_STATE__" type="application/json">');
+  if (parts.length < 2) return new Response("{}", { headers: { "Content-Type": "application/json" } });
+  const json = parts[1].split("</script>")[0];
+  return new Response(json, { headers: { "Content-Type": "application/json" } });
+}
+
+async function cacheFirst(event) {
+  const cache = await caches.open(self.context.fingerprint);
+  const cachedResponse = await cache.match(event.request);
+  if (cachedResponse) return cachedResponse;
+  const response = await load(event);
+  await cache.put(event.request, response.clone());
+  return response;
+}
+
+async function staleWhileRevalidate(event) {
+  const cache = await caches.open(self.context.fingerprint);
+  const cachedResponse = await cache.match(event.request);
+  const networkResponsePromise = load(event);
+  event.waitUntil(async function () {
+    const networkResponse = await networkResponsePromise;
+    await cache.put(event.request, networkResponse.clone());
+  }());
+  return cachedResponse || networkResponsePromise;
+}
+
+async function networkFirst(event) {
+  const cache = await caches.open(self.context.fingerprint);
+  try {
+    const networkResponse = await load(event);
+    await cache.put(event.request, networkResponse.clone());
+    return networkResponse;
+  } catch (error) {
+    return cache.match(event.request);
+  }
+}
+
+async function networkDataFirst(event) {
+  const cache = await caches.open(self.context.fingerprint);
+  const url = new URL(event.request.url);
+  try {
+    const response = await load(event);
+    const dataResponse = await extractData(response);
+    return response;
+  } catch (error) {
+    const cachedDataResponse = await cache.match(url);
+    return cachedDataResponse || cache.match("/offline/index.html");
+  }
+}
+
+function install(event) {
+  const urls = [
+    \`/client.js?fingerprint=\${self.context.fingerprint}\`,
+    \`/client.css?fingerprint=\${self.context.fingerprint}\`,
+    ...(self.context.mode === "ssg" ? ["/", ...self.context.worker.preload.map(withAPI)] : []),
+  ].flat().filter(Boolean);
+  event.waitUntil(async function () {
+    const cache = await caches.open(self.context.fingerprint);
+    await cache.addAll([...new Set(urls)]);
+    self.skipWaiting();
+  }());
+}
+self.addEventListener("install", install);
+
+function activate(event) {
+  event.waitUntil(async function () {
+    const cacheNames = await caches.keys();
+    const cachesToDelete = cacheNames.filter((name) => name !== self.context.fingerprint);
+    await Promise.all(cachesToDelete.map((name) => caches.delete(name)));
+    if (self.registration.navigationPreload) {
+      await self.registration.navigationPreload.enable();
+    }
+    self.clients.claim();
+  }());
+}
+self.addEventListener("activate", activate);
+
+function staticStrategy(event) {
+  event.waitUntil(async function () {
+    if (event.request.method !== "GET") return;
+    const url = new URL(event.request.url);
+    for (const matcher of self.context.worker.staleWhileRevalidate) {
+      if (match(matcher, url)) return event.respondWith(staleWhileRevalidate(event));
+    }
+    for (const matcher of self.context.worker.cacheFirst) {
+      if (match(matcher, url)) return event.respondWith(cacheFirst(event));
+    }
+    if (url.origin !== location.origin) return;
+    if (url.searchParams?.get("fingerprint") === self.context.fingerprint) {
+      return event.respondWith(cacheFirst(event));
+    }
+    if (url.pathname.indexOf(".") > -1) return event.respondWith(staleWhileRevalidate(event));
+    if (self.context.mode === "ssr" || url.pathname === "/") return event.respondWith(networkFirst(event));
+    event.respondWith(networkDataFirst(event));
+  }());
+}
+self.addEventListener("fetch", staticStrategy);
+`;
+  }
+
+  private async writeManifest(outDir: string): Promise<void> {
+    const {
+      name,
+      color,
+      backgroundColor,
+      display,
+      orientation,
+      scope,
+      icons,
+      cdn,
+    } = this.deps.context.project;
+    const resolveHref = (href: string) =>
+      cdn ? new URL(href, cdn).href : href;
+
+    const manifest = {
+      name,
+      short_name: name,
+      theme_color: color || "#000000",
+      background_color: backgroundColor || "#ffffff",
+      display: display || "standalone",
+      orientation: orientation || "portrait",
+      scope: scope || "/",
+      start_url: "/",
+      icons: Object.entries(icons ?? {}).map(([size, href]) => ({
+        src: resolveHref(href),
+        sizes: `${size}x${size}`,
+        type: "image/png",
+        purpose: "maskable any",
+      })),
+      splash_pages: null,
+    };
+
+    await writeFile(
+      join(outDir, "manifest.webmanifest"),
+      JSON.stringify(manifest, null, 2),
+      "utf-8",
+    );
+    console.log("Generated manifest.webmanifest");
+  }
+
+  private async writeServiceWorker(
+    outDir: string,
+    routes: string[],
+    mode: string,
+  ): Promise<void> {
+    const script = this.serviceWorkerScript(routes, mode);
+    await writeFile(join(outDir, "service-worker.js"), script, "utf-8");
+    console.log("Generated service-worker.js");
   }
 
   private matchesRoutePattern(path: string, pattern: string): boolean {

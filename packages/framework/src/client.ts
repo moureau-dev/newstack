@@ -36,6 +36,15 @@ export class NewstackClient {
   renderer: Renderer;
 
   private mounted = false;
+  private workerState: NewstackClientContext["worker"] = {
+    enabled: true,
+    mode: "ssr",
+    online: true,
+    responsive: false,
+    registration: null,
+    installation: null,
+    queues: {},
+  };
 
   constructor(root?: HTMLElement) {
     if (root) {
@@ -74,6 +83,8 @@ export class NewstackClient {
     );
     const state = JSON.parse(stateScript?.textContent || "{}");
 
+    this.workerState = state.__worker ?? { enabled: true, mode: "ssr" };
+
     const ctx: Partial<NewstackClientContext> = {
       environment: "client",
       page,
@@ -85,6 +96,7 @@ export class NewstackClient {
       }),
       settings: (globalThis as any).__NEWSTACK_SETTINGS__ ?? {},
       fingerprint,
+      worker: this.workerState,
     };
 
     this.context = proxifyContext(ctx, this) as NewstackClientContext;
@@ -149,6 +161,77 @@ export class NewstackClient {
     if (typeof window !== "undefined") {
       (window as any).__NEWSTACK = this;
       window.dispatchEvent(new CustomEvent("newstack:ready", { detail: this }));
+
+      const update = () => {
+        this.renderer.components.forEach(({ component }, hash) => {
+          if (this.renderer.visibleHashes.has(hash))
+            this.renderer.updateComponent(component);
+        });
+      };
+
+      const emptyQueue = Object.freeze([]);
+      const worker = new Proxy(
+        {
+          ...this.workerState,
+          online: navigator.onLine,
+          responsive: false,
+          registration: null as ServiceWorkerRegistration | null,
+          installation: null as Event | null,
+          queues: new Proxy({} as Record<string, any[]>, {
+            set: (t, k, v) => {
+              t[k as string] = v;
+              update();
+              return true;
+            },
+            get: (t, k) => t[k as string] ?? emptyQueue,
+          }),
+        },
+        {
+          set: (t, k, v) => {
+            if (t[k as string] !== v) {
+              t[k as string] = v;
+              update();
+            }
+            return true;
+          },
+        },
+      );
+
+      this.context.worker = worker;
+
+      if (worker.enabled) {
+        const dev = !this.context.fingerprint;
+
+        const register = async () => {
+          if (!("serviceWorker" in navigator)) return;
+          try {
+            worker.registration = await navigator.serviceWorker.register(
+              "/service-worker.js",
+              { scope: "/" },
+            );
+            if (dev) await worker.registration.unregister();
+          } catch (error) {
+            console.error(error);
+          }
+        };
+
+        window.addEventListener("beforeinstallprompt", (event) => {
+          event.preventDefault();
+          worker.installation = event;
+        });
+
+        window.addEventListener("online", () => {
+          worker.online = true;
+          if (worker.mode === "ssg") void this.renderRoute(location.pathname);
+          else worker.responsive = true;
+        });
+
+        window.addEventListener("offline", () => {
+          worker.online = false;
+        });
+
+        register();
+      }
     }
   }
 
