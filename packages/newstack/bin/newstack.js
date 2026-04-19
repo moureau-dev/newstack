@@ -2,7 +2,8 @@
 
 import { spawn } from "child_process";
 import { resolve } from "path";
-import { mkdir } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
+import { createHash } from "crypto";
 import { pathToFileURL } from "url";
 import { context as esbuildContext, build as esbuildBuild } from "esbuild";
 
@@ -126,11 +127,22 @@ async function runWatch() {
 
   let serverProcess = null;
   let firstBuild = true;
+  let lastServerHash = null;
 
   const restartServer = () => {
-    if (serverProcess) serverProcess.kill("SIGTERM");
-    serverProcess = spawnServer({ NEWSTACK_WATCH: "true" }, false);
+    if (serverProcess) {
+      const old = serverProcess;
+      serverProcess = null;
+      old.once("exit", () => {
+        serverProcess = spawnServer({ NEWSTACK_WATCH: "true" }, false);
+      });
+      old.kill("SIGTERM");
+    } else {
+      serverProcess = spawnServer({ NEWSTACK_WATCH: "true" }, false);
+    }
   };
+
+  const serverOutFile = resolve(process.cwd(), "dist/server.js");
 
   const serverCtx = await esbuildContext({
     ...config.server,
@@ -139,10 +151,24 @@ async function runWatch() {
       {
         name: "newstack-server-restart",
         setup(build) {
-          build.onEnd((result) => {
+          build.onEnd(async (result) => {
             if (result.errors.length > 0) return;
-            if (!firstBuild) console.log("↺  Server rebuilt, restarting...");
-            firstBuild = false;
+            if (firstBuild) {
+              firstBuild = false;
+              try {
+                const buf = await readFile(serverOutFile);
+                lastServerHash = createHash("sha256").update(buf).digest("hex");
+              } catch {}
+              restartServer();
+              return;
+            }
+            try {
+              const buf = await readFile(serverOutFile);
+              const hash = createHash("sha256").update(buf).digest("hex");
+              if (hash === lastServerHash) return;
+              lastServerHash = hash;
+            } catch {}
+            console.log("↺  Server rebuilt, restarting...");
             restartServer();
           });
         },

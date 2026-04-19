@@ -24,6 +24,11 @@ export class HmrManager {
     }
   }
 
+  gracefulShutdown(): Promise<void> {
+    this.notify({ type: "close" });
+    return new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
   setup(): void {
     const encoder = new TextEncoder();
 
@@ -100,6 +105,9 @@ export class HmrManager {
           if (link) link.href = link.href.split('?')[0] + '?t=' + Date.now();
         } else if (msg.type === 'js') {
           await doJsHmr();
+        } else if (msg.type === 'close') {
+          es.close();
+          setTimeout(() => connectHmr(true), 150);
         }
       };
       es.onerror = () => {

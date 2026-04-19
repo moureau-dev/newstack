@@ -90,7 +90,7 @@ export class Renderer {
       if (typeof type === "function" && (type as any).hash) {
         const hash = (type as any).hash as string;
         newClasses.set(hash, type as unknown as typeof Newstack);
-        const inst = new (type as any)();
+        const inst = proxify(new (type as any)(), this);
         if (isRenderableComponent(inst)) {
           traverse(inst.render(this.context));
         }
@@ -103,8 +103,9 @@ export class Renderer {
       }
     };
 
-    if (isRenderableComponent(newApp)) {
-      traverse(newApp.render(this.context));
+    const proxifiedNewApp = proxify(newApp, this);
+    if (isRenderableComponent(proxifiedNewApp)) {
+      traverse(proxifiedNewApp.render(this.context));
     }
 
     // Swap prototypes and update reinitiate closures

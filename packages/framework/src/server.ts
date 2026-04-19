@@ -495,7 +495,13 @@ export class NewstackServer {
       return this.server;
     }
 
-    if (process.env.NEWSTACK_WATCH === "true") this.hmrManager.setup();
+    if (process.env.NEWSTACK_WATCH === "true") {
+      this.hmrManager.setup();
+      process.on("SIGTERM", async () => {
+        await this.hmrManager.gracefulShutdown();
+        process.exit(0);
+      });
+    }
 
     this.serveAppRoutes();
     this.renderer.setupAllComponents(this.app);
