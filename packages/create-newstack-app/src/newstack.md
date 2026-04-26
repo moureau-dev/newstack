@@ -52,8 +52,13 @@ Just set properties. No setState, no signals, no stores.
 this.count++;                    // re-renders
 this.user = { name };            // re-renders
 this.items = [...this.items, x]; // re-renders
-this.items.push(x);              // re-renders — mutations in lifecycle methods and event handlers are batched
+this.items.push(x);              // re-renders — works from event handlers, Promise callbacks, timers, anywhere
+this.items[0] = x;               // re-renders
+this.items.length = 0;           // re-renders
+delete this.prop;                // re-renders
 ```
+
+Array mutation methods (`push`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`, `fill`, `copyWithin`) are fully reactive regardless of call context.
 
 `prepare` and `hydrate` (including async) are fully batched — all mutations are collected and a single re-render fires when they complete.
 
@@ -171,6 +176,51 @@ form;
 
 // ❌ only works with the esbuild bundler
 <input bind={this.newTodo} />
+```
+
+---
+
+## Element Refs
+
+Use `ref={this.prop}` to get a direct reference to a DOM element or component instance after mount. The bundler rewrites `ref={this.dialog}` to `ref={{ object: this, property: 'dialog' }}` at build time so the renderer can assign the live element directly.
+
+```tsx
+export class Modal extends Newstack {
+  dialog: HTMLDialogElement;
+
+  open() {
+    this.dialog.showModal();
+  }
+
+  close() {
+    this.dialog.close();
+  }
+
+  render() {
+    return (
+      <>
+        <button onclick={() => this.open()}>Open</button>
+        <dialog ref={this.dialog}>
+          <p>Hello!</p>
+          <button onclick={() => this.close()}>Close</button>
+        </dialog>
+      </>
+    );
+  }
+}
+```
+
+- `ref` is set after the element is mounted/patched — safe to use in `hydrate()` and later.
+- Works on any HTML element or Newstack class component.
+- `ref` never appears as an HTML attribute.
+- **CDN / no-build:** the `ref={this.prop}` shorthand requires the esbuild transform. Not available without a build step.
+
+```tsx
+// ✅ works everywhere including CDN
+<dialog ref={{ object: this, property: 'dialogRef' }} />
+
+// ❌ only works with the esbuild bundler
+<dialog ref={this.dialogRef} />
 ```
 
 ---
@@ -662,7 +712,7 @@ export default {
 
 | Wrong | Right |
 |---|---|
-| `this.list.push(x)` in `update()` outside of an event | `update` is not batched — push won't trigger a re-render there. Use `this.list = [...this.list, x]` instead. |
+| `this.list.push(x)` inside `update()` | Array mutations now trigger re-renders everywhere — calling `push` in `update()` creates an infinite loop. Guard mutations with a condition or avoid mutating state inside `update()`. |
 | `onClick={...}` | `onclick={...}` |
 | `className="foo"` | `class="foo"` |
 | `style={{ color: 'red' }}` | `style="color: red"` — styles are strings, not objects |
