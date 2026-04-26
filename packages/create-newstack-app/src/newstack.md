@@ -2,6 +2,8 @@
 
 Newstack is a full-stack SSR/SSG/SPA framework with proxy-based reactivity, no virtual DOM, and an esbuild bundler. Components run on both server and client.
 
+**This is not React, Vue, or Svelte.** Do not apply patterns from those frameworks. No JSX imports, no hooks, no stores, no signals, no className, no onClick, no style objects, no key reconciliation.
+
 ---
 
 ## Component Anatomy
@@ -59,6 +61,16 @@ delete this.prop;                // re-renders
 ```
 
 Array mutation methods (`push`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`, `fill`, `copyWithin`) are fully reactive regardless of call context.
+
+**Reactivity is shallow — only top-level component properties are tracked.** Nested mutations are silent:
+
+```tsx
+this.user.name = "new";         // ❌ silent — no re-render
+this.user = { ...this.user, name: "new" }; // ✅
+
+this.matrix[0].push(x);        // ❌ silent — nested array not reactive
+this.matrix[0] = [...this.matrix[0], x];   // ✅
+```
 
 `prepare` and `hydrate` (including async) are fully batched — all mutations are collected and a single re-render fires when they complete.
 
@@ -122,7 +134,7 @@ handleClick({ event, router }: NewstackClientContext) {
 
 ```tsx
 <form onsubmit={this.addTodo}>
-  <input bind={{ object: this, property: "newTodo" }} />
+  <input bind={this.newTodo} />  {/* shorthand — see Two-Way Binding */}
   <button type="submit">Add</button>
 </form>
 ```
@@ -210,7 +222,7 @@ export class Modal extends Newstack {
 }
 ```
 
-- `ref` is set after the element is mounted/patched — safe to use in `hydrate()` and later.
+- `ref` is set after the element is mounted — safe to use in `hydrate()` and later. **Never access a ref in `prepare()` — it runs on the server where there is no DOM, so `this.dialog` will be `undefined`.**
 - Works on any HTML element or Newstack class component.
 - `ref` never appears as an HTML attribute.
 - **CDN / no-build:** the `ref={this.prop}` shorthand requires the esbuild transform. Not available without a build step.
@@ -713,6 +725,9 @@ export default {
 | Wrong | Right |
 |---|---|
 | `this.list.push(x)` inside `update()` | Array mutations now trigger re-renders everywhere — calling `push` in `update()` creates an infinite loop. Guard mutations with a condition or avoid mutating state inside `update()`. |
+| `this.user.name = "new"` | Nested property assignment is silent — no re-render. Use `this.user = { ...this.user, name: "new" }` instead. |
+| `this.matrix[0].push(x)` | Nested array mutations are silent. Reassign the outer array: `this.matrix[0] = [...this.matrix[0], x]`. |
+| Accessing a ref in `prepare()` | `prepare()` runs on the server — there is no DOM. Refs are only available in `hydrate()` and later. |
 | `onClick={...}` | `onclick={...}` |
 | `className="foo"` | `class="foo"` |
 | `style={{ color: 'red' }}` | `style="color: red"` — styles are strings, not objects |
@@ -725,7 +740,6 @@ export default {
 
 ### update()
 
-- `update()` behaves like a reactive effect.
-- It automatically tracks any properties accessed during execution.
-- It re-runs when any of those properties change.
-- Mutating tracked properties inside `update()` can cause infinite loops.
+- Fires whenever **any** property on the component changes — assignment, array mutation, or `delete`.
+- It is **not selective** — it does not track which properties were accessed. Every state change triggers it.
+- Mutating state inside `update()` without a condition creates an infinite loop.
