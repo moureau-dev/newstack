@@ -363,6 +363,37 @@ export class Renderer {
     this.lastVNode = newVNode;
   }
 
+  extractParams(vnode: any) {
+    this.context.params = {};
+    const path = this.context.router?.path || (typeof window !== "undefined" ? window.location.pathname : "/");
+    this.scanParams(vnode, path);
+  }
+
+  private scanParams(vnode: any, path: string) {
+    if (!vnode || typeof vnode !== "object") return;
+    if (Array.isArray(vnode)) {
+      vnode.forEach(v => this.scanParams(v, path));
+      return;
+    }
+    const { props } = vnode;
+    if (props?.route && typeof props.route === "string") {
+      const pattern = props.route.split("/").filter(Boolean);
+      const segments = path.split("/").filter(Boolean);
+      if (pattern.length === segments.length) {
+        let match = true;
+        for (let i = 0; i < pattern.length; i++) {
+          if (pattern[i].startsWith(":")) {
+            this.context.params[pattern[i].slice(1)] = segments[i];
+          } else if (pattern[i] !== segments[i]) {
+            match = false;
+            break;
+          }
+        }
+      }
+    }
+    if (props?.children) this.scanParams(props.children, path);
+  }
+
   /**
    * @description
    * Updates a Newstack component in the DOM.

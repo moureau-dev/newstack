@@ -90,6 +90,7 @@ export class NewstackClient {
       page,
       project: state.__project ?? {},
       router,
+      path: location.pathname,
       params: {},
       instances: new Proxy({} as Record<string, any>, {
         get: (t, k) => (k in t ? t[k as string] : {}),
@@ -257,8 +258,22 @@ export class NewstackClient {
     this.assignElements();
 
     void (async () => {
+      const vnode = component.render(this.context);
+      this.renderer.extractParams(vnode);
+
       await component.prepare?.(this.context);
+
+      for (const [hash, { component: c }] of this.renderer.components) {
+        if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+        await c.prepare?.(this.context);
+      }
+
       await component.hydrate?.(this.context);
+
+      for (const [hash, { component: c }] of this.renderer.components) {
+        if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+        await c.hydrate?.(this.context);
+      }
     })();
 
     return {
@@ -288,6 +303,13 @@ export class NewstackClient {
     this.context.path = href;
 
     if (this.mounted) {
+      const vnode = this.app.render(this.context);
+      this.renderer.extractParams(vnode);
+
+      for (const [hash, { component }] of this.renderer.components) {
+        if (!this.renderer.visibleHashes.has(hash)) continue;
+        await component.prepare?.(this.context);
+      }
       this.renderer.updateComponent(this.app);
       return;
     }
