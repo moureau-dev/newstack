@@ -683,6 +683,14 @@ function flattenVNodeChildren(vnodes: unknown[]): VNode[] {
   return result;
 }
 
+/**
+ * Tracks which HTML attributes were last set by the framework on each element.
+ * Only attributes in this set are candidates for removal during patching —
+ * browser-managed attributes (e.g. `open` on a dialog set by showModal()) are
+ * never tracked here and therefore never removed by the reconciler.
+ */
+const frameworkManagedAttrs = new WeakMap<Element, Set<string>>();
+
 function patchElement(
   oldEl: Element,
   newEl: Element,
@@ -698,19 +706,26 @@ function patchElement(
     : [vnode?.props?.children];
   const vnodeChildren = flattenVNodeChildren(rawVnodeChildren);
 
-  // Remove old attributes
+  const managed = frameworkManagedAttrs.get(oldEl) ?? new Set<string>();
+
+  // Remove attributes that the framework previously set but are no longer present.
+  // Browser-managed attributes (not in `managed`) are left untouched.
   Array.from(oldAttrs).forEach((attr) => {
-    if (!newEl.hasAttribute(attr.name)) {
+    if (!newEl.hasAttribute(attr.name) && managed.has(attr.name)) {
       oldEl.removeAttribute(attr.name);
+      managed.delete(attr.name);
     }
   });
 
-  // Set new or changed attributes
+  // Set new or changed attributes and record them as framework-managed.
   Array.from(newAttrs).forEach((attr) => {
     if (oldEl.getAttribute(attr.name) !== attr.value) {
       oldEl.setAttribute(attr.name, attr.value);
     }
+    managed.add(attr.name);
   });
+
+  frameworkManagedAttrs.set(oldEl, managed);
 
   // Recursively patch children
   const oldChildren = Array.from(oldEl.childNodes);
@@ -724,6 +739,7 @@ function patchElement(
         oldEl[key] = (e: Event) => {
           e.preventDefault();
           val(e);
+          if (update) update(e);
         };
       }
     });
