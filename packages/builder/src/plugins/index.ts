@@ -3,13 +3,14 @@ import { readFile } from "fs/promises";
 import { Hasher } from "./hasher";
 import { ReplaceStaticMethods } from "./static-methods";
 import { IgnoreCss } from "./ignore-css";
-import { BindTransform, MethodBindTransform } from "./bind";
+import { BindTransform, MethodBindTransform, RefTransform } from "./bind";
 export {
   Hasher,
   ReplaceStaticMethods,
   IgnoreCss,
   BindTransform,
   MethodBindTransform,
+  RefTransform,
 };
 export * from "./split-bundle";
 export { EnvPlugin } from "./env";
@@ -37,8 +38,9 @@ export function NewstackPlugin(environment: "client" | "server"): Plugin {
         // Add a hash to classes extending Newstack
         code = Hasher(args, code);
 
-        // Rewrite bind={this.prop} and on*={this.method} before JSX compilation
+        // Rewrite bind={this.prop}, ref={this.prop}, and on*={this.method} before JSX compilation
         code = BindTransform(code);
+        code = RefTransform(code);
         code = MethodBindTransform(code);
 
         if (environment === "client" && code.includes("static async")) {

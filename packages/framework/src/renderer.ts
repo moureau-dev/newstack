@@ -238,6 +238,10 @@ export class Renderer {
         this.context.instances[props.key as string] = component;
       }
 
+      if (props?.ref && this.context.environment === "client") {
+        applyRef(props.ref, component);
+      }
+
       const isRenderable = isRenderableComponent(component);
 
       if (isRenderable) {
@@ -267,9 +271,15 @@ export class Renderer {
     const attrs = Object.entries(props || {})
       .filter(
         ([key]) =>
-          !["route", "children", "bind", "key", "persistent", "html"].includes(
-            key,
-          ),
+          ![
+            "route",
+            "children",
+            "bind",
+            "key",
+            "persistent",
+            "html",
+            "ref",
+          ].includes(key),
       )
       .filter(([, val]) => typeof val !== "function")
       .filter(([, val]) => val !== false)
@@ -707,17 +717,21 @@ function patchElement(
   const newChildren = Array.from(newEl.childNodes);
   const len = Math.max(oldChildren.length, newChildren.length);
 
-  // Attach event listeners from vnode to newEl
+  // Attach event listeners from vnode to oldEl
   if (vnode?.props) {
     Object.entries(vnode.props).forEach(([key, val]) => {
       if (key.startsWith("on") && typeof val === "function") {
         oldEl[key] = (e: Event) => {
           e.preventDefault();
           val(e);
-          if (update) update(e);
         };
       }
     });
+  }
+
+  // Assign ref to the real DOM element
+  if (vnode?.props?.ref) {
+    applyRef(vnode.props.ref, oldEl);
   }
 
   // innerHTML via html prop
@@ -804,6 +818,22 @@ function patchElement(
         patchElement(inserted as Element, inserted as Element, vchild, update);
       }
     }
+  }
+}
+
+function applyRef(ref: unknown, value: unknown): void {
+  if (
+    ref &&
+    typeof ref === "object" &&
+    "object" in (ref as object) &&
+    "property" in (ref as object)
+  ) {
+    const { object, property } = ref as {
+      object: Record<string, unknown>;
+      property: string;
+    };
+    // Guard against re-render loops: only assign when the value actually changed.
+    if (object[property] !== value) object[property] = value;
   }
 }
 

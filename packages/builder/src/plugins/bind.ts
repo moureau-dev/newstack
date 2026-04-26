@@ -17,6 +17,23 @@ export function BindTransform(code: string): string {
 }
 
 /**
+ * Rewrites ref={this.prop} to ref={{ object: this, property: 'prop' }}
+ * so the renderer can assign the DOM element or component instance directly
+ * to the component property at runtime.
+ */
+export function RefTransform(code: string): string {
+  return code.replace(
+    /ref=\{\s*(this(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)+)\s*\}/g,
+    (_, path) => {
+      const lastDot = path.lastIndexOf(".");
+      const object = path.slice(0, lastDot);
+      const property = path.slice(lastDot + 1);
+      return `ref={{ object: ${object}, property: '${property}' }}`;
+    },
+  );
+}
+
+/**
  * Rewrites on*={this.method} to on*={(e) => this.method(this.__ctx, e)}
  * so event handlers referencing component methods:
  *   - keep their `this` context (via lexical arrow function)
