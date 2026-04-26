@@ -265,14 +265,22 @@ export class NewstackClient {
 
       for (const [hash, { component: c }] of this.renderer.components) {
         if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+        (c as any).__preparing = true;
         await c.prepare?.(this.context);
+        (c as any).__preparing = false;
+        c.prepared = true;
       }
+
+      this.renderer.updateComponent(component);
 
       await component.hydrate?.(this.context);
 
       for (const [hash, { component: c }] of this.renderer.components) {
         if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+        (c as any).__hydrating = true;
         await c.hydrate?.(this.context);
+        (c as any).__hydrating = false;
+        c.hydrated = true;
       }
     })();
 
