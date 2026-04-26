@@ -561,6 +561,18 @@ export class Renderer {
   }
 }
 
+const ARRAY_MUTATING = [
+  "push",
+  "pop",
+  "shift",
+  "unshift",
+  "splice",
+  "sort",
+  "reverse",
+  "fill",
+  "copyWithin",
+];
+
 /**
  * @description
  * Creates a proxy for a Newstack component that automatically updates the component
@@ -572,6 +584,53 @@ export class Renderer {
  * @param renderer The renderer instance that will handle updates to the component.
  */
 function proxify(component: Newstack, renderer: Renderer): Newstack {
+  // Caches reactive array wrappers by raw array instance so identity is stable.
+  // Every access to the same array returns the same proxy.
+  const arrayCache = new WeakMap<unknown[], unknown[]>();
+
+  const trigger = () => {
+    if ((component as any).__hydrating || (component as any).__preparing)
+      return;
+    renderer.updateComponent(proxy);
+    (component as any).update?.(renderer.context);
+  };
+
+  const reactiveArray = (arr: unknown[]): unknown[] => {
+    const cached = arrayCache.get(arr);
+    if (cached) return cached;
+
+    const reactive = new Proxy(arr, {
+      get(t, k) {
+        const v = Reflect.get(t, k);
+        if (
+          typeof k === "string" &&
+          ARRAY_MUTATING.includes(k) &&
+          typeof v === "function"
+        ) {
+          return (...args: unknown[]) => {
+            const result = (v as (...a: unknown[]) => unknown).apply(t, args);
+            trigger();
+            return result;
+          };
+        }
+        return v;
+      },
+      set(t, k, v) {
+        t[k] = v;
+        trigger();
+        return true;
+      },
+      deleteProperty(t, k) {
+        delete t[k];
+        trigger();
+        return true;
+      },
+    });
+
+    arrayCache.set(arr, reactive);
+    return reactive;
+  };
+
   const proxy = new Proxy(component, {
     get(target, key) {
       const val = Reflect.get(target, key);
@@ -614,6 +673,10 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
         };
       }
 
+      // Return a reactive wrapper for arrays so mutating methods
+      // (push, pop, splice, …) trigger re-renders from any context.
+      if (Array.isArray(val)) return reactiveArray(val);
+
       return val;
     },
     set(target, key, value) {
@@ -627,6 +690,14 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
       renderer.updateComponent(proxy);
       target.update?.(renderer.context);
 
+      return true;
+    },
+    deleteProperty(target, key) {
+      delete target[key];
+      if (!(target as any).__hydrating && !(target as any).__preparing) {
+        renderer.updateComponent(proxy);
+        (target as any).update?.(renderer.context);
+      }
       return true;
     },
   });
