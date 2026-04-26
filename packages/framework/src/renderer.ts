@@ -506,7 +506,14 @@ export class Renderer {
         const { type, props } = node;
 
         if (isComponentNode(node)) {
-          const hash = (type as unknown as { hash: string }).hash;
+          let hash = (type as unknown as { hash: string }).hash;
+
+          // Auto-hash for CDN usage
+          if (!hash) {
+            hash = Math.random().toString(36).slice(2, 10);
+            (type as any).hash = hash;
+          }
+
           const createComponent = () => proxify(new (type as any)(), this);
           const component = createComponent();
           const reinitiate = () => {
@@ -1003,9 +1010,11 @@ function isComponentNode(node: VNode): boolean {
   // reference (different module URL), so instanceof fails intermittently.
   // Every Newstack component gets a string `.hash` from NewstackPlugin, which
   // is a reliable and cross-bundle-safe identifier.
+  // For CDN usage without build step, also check for render method on prototype.
   return (
     typeof node.type === "function" &&
-    typeof (node.type as any).hash === "string"
+    (typeof (node.type as any).hash === "string" ||
+     (node.type.prototype && typeof node.type.prototype.render === "function"))
   );
 }
 
