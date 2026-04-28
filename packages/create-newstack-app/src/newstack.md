@@ -453,8 +453,6 @@ Newstack can be used directly in a browser without any build step via Babel Stan
       import Newstack, { NewstackClient } from "https://cdn.jsdelivr.net/npm/@moureau/newstack/dist/index.min.js";
       import { h, Fragment } from "https://cdn.jsdelivr.net/npm/@moureau/newstack/dist/jsx-shim.js";
 
-      NewstackClient.init();
-
       class App extends Newstack {
         value = "";
 
@@ -468,7 +466,12 @@ Newstack can be used directly in a browser without any build step via Babel Stan
         }
       }
 
-      window.mount(App, document.body);
+      const root =
+        document.querySelector("#app") ??
+        document.body.appendChild(Object.assign(document.createElement("div"), { id: "app" }));
+
+      const newstack = NewstackClient.init();
+      newstack.mount(App, root);
     </script>
   </body>
 </html>
