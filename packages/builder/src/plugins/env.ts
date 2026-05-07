@@ -45,6 +45,14 @@ export function EnvPlugin(): Plugin {
         } catch {}
       }
 
+      // Merge process.env
+      for (const [key, value] of Object.entries(process.env)) {
+        if (value === undefined) continue;
+        if (key.startsWith("NEWSTACK_")) {
+          env[key] = value;
+        }
+      }
+
       const settings: Record<string, string> = {};
       const define: Record<string, string> = {};
 

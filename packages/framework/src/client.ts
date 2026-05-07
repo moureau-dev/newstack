@@ -2,6 +2,8 @@ import { proxifyContext } from "./context";
 import type { Newstack, NewstackClientContext } from "./core";
 import { Renderer } from "./renderer";
 
+declare const __NEWSTACK_SETTINGS__: Record<string, string | number | boolean>;
+
 /**
  * @description
  * NewstackClient is a class that initializes and manages the Newstack application on the client side.
@@ -95,7 +97,7 @@ export class NewstackClient {
       instances: new Proxy({} as Record<string, any>, {
         get: (t, k) => (k in t ? t[k as string] : {}),
       }),
-      settings: (globalThis as any).__NEWSTACK_SETTINGS__ ?? {},
+      settings: __NEWSTACK_SETTINGS__ ?? {},
       fingerprint,
       worker: this.workerState,
     };
