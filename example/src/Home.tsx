@@ -17,7 +17,7 @@ import { HeadInject } from "./components/HeadInject";
 import { LocaleSelect } from "./components/LocaleSelect";
 import { Runtime } from "./components/Runtime";
 import { RefExample } from "./components/RefExample";
-import { InstanceExample } from "./components/InstanceExample";
+import { InstanceExample, InstanceMirror } from "./components/InstanceExample";
 
 /**
  * @description
@@ -58,6 +58,7 @@ export class Home extends Newstack {
         <Runtime />
         <RefExample />
         <InstanceExample />
+        <InstanceMirror />
 
         <footer class="flex gap-4 items-center">
           <a href="/about">About</a>

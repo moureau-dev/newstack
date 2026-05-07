@@ -529,6 +529,13 @@ export class Renderer {
 
           this.components.set(hash, { component, reinitiate });
 
+          if (props?.key) {
+            this.context.instances[props.key as string] = component;
+            if (!isRenderableComponent(component)) {
+              this.instanceHashes.add(hash);
+            }
+          }
+
           if (isRenderableComponent(component)) {
             loop(component.render(this.context));
           }
@@ -736,18 +743,14 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
       if ((target as any).__hydrating || (target as any).__preparing)
         return true;
 
-      // Pass proxy (not raw target) so render's `this` stays the proxy,
-      // which keeps bind.object pointing at the proxy for future oninput calls.
-      renderer.updateComponent(proxy);
-      target.update?.(renderer.context);
+      trigger();
 
       return true;
     },
     deleteProperty(target, key) {
       delete target[key];
       if (!(target as any).__hydrating && !(target as any).__preparing) {
-        renderer.updateComponent(proxy);
-        (target as any).update?.(renderer.context);
+        trigger();
       }
       return true;
     },
