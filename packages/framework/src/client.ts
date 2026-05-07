@@ -263,20 +263,28 @@ export class NewstackClient {
 
       await component.prepare?.(this.context);
 
-      for (const [hash, { component: c }] of this.renderer.components) {
-        if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+      const childHashes = new Set<string>([
+        ...this.renderer.visibleHashes,
+        ...this.renderer.instanceHashes,
+      ]);
+      childHashes.delete(ComponentClass.hash);
+
+      for (const hash of childHashes) {
+        const entry = this.renderer.components.get(hash);
+        if (!entry) continue;
+        const c = entry.component;
         (c as any).__preparing = true;
         await c.prepare?.(this.context);
         (c as any).__preparing = false;
         c.prepared = true;
       }
 
-      this.renderer.updateComponent(component);
-
       await component.hydrate?.(this.context);
 
-      for (const [hash, { component: c }] of this.renderer.components) {
-        if (hash === ComponentClass.hash || !this.renderer.visibleHashes.has(hash)) continue;
+      for (const hash of childHashes) {
+        const entry = this.renderer.components.get(hash);
+        if (!entry) continue;
+        const c = entry.component;
         (c as any).__hydrating = true;
         await c.hydrate?.(this.context);
         (c as any).__hydrating = false;
@@ -314,9 +322,17 @@ export class NewstackClient {
       const vnode = this.app.render(this.context);
       this.renderer.extractParams(vnode);
 
-      for (const [hash, { component }] of this.renderer.components) {
-        if (!this.renderer.visibleHashes.has(hash)) continue;
+      const mountedComponents: Newstack[] = [];
+      this.renderer.components.forEach(({ component }, hash) => {
+        if (this.renderer.visibleHashes.has(hash)) mountedComponents.push(component);
+      });
+      mountedComponents.push(...this.instanceComponents());
+
+      for (const component of mountedComponents) {
+        (component as any).__preparing = true;
         await component.prepare?.(this.context);
+        (component as any).__preparing = false;
+        component.prepared = true;
       }
       this.renderer.updateComponent(this.app);
       return;
@@ -409,7 +425,10 @@ export class NewstackClient {
    * This is used when changing routes.
    */
   private destroyComponents() {
-    const components = this.routeComponents();
+    const components = [
+      ...this.routeComponents(),
+      ...this.instanceComponents(),
+    ];
 
     for (const component of components) {
       const hash = (component.constructor as any).hash as string;
@@ -423,6 +442,8 @@ export class NewstackClient {
         this.renderer.visibleHashes.delete(hash);
       }
     }
+
+    this.renderer.instanceHashes.clear();
   }
 
   /**
@@ -432,7 +453,10 @@ export class NewstackClient {
    * It is called after rendering a new route to ensure that all components are ready for interaction.
    */
   private async startComponents() {
-    const components = this.routeComponents();
+    const components = [
+      ...this.routeComponents(),
+      ...this.instanceComponents(),
+    ];
 
     for (const component of components) {
       const hash = (component.constructor as any).hash as string;
@@ -472,6 +496,17 @@ export class NewstackClient {
       if (!this.renderer.visibleHashes.has(hash)) return;
 
       components.push(component);
+    });
+
+    return components;
+  }
+
+  private instanceComponents() {
+    const components: Newstack[] = [];
+
+    this.renderer.instanceHashes.forEach((hash) => {
+      const entry = this.renderer.components.get(hash);
+      if (entry) components.push(entry.component);
     });
 
     return components;

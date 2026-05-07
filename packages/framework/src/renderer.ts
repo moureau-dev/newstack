@@ -33,6 +33,7 @@ export class Renderer {
    */
   visibleHashes: Set<string> = new Set();
   persistentHashes: Set<string> = new Set();
+  instanceHashes: Set<string> = new Set();
 
   /**
    * @description
@@ -259,6 +260,10 @@ export class Renderer {
         const node = this.html(vnode);
         this.head.currentHash = prevHash;
         return node;
+      }
+
+      if (props?.key) {
+        this.instanceHashes.add(hash);
       }
 
       return "";
@@ -629,7 +634,15 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
   const trigger = () => {
     if ((component as any).__hydrating || (component as any).__preparing)
       return;
-    renderer.updateComponent(proxy);
+    const hash = (component.constructor as any).hash as string;
+    if (renderer.instanceHashes.has(hash)) {
+      renderer.visibleHashes.forEach((vh) => {
+        const entry = renderer.components.get(vh);
+        if (entry) renderer.updateComponent(entry.component);
+      });
+    } else {
+      renderer.updateComponent(proxy);
+    }
     (component as any).update?.(renderer.context);
   };
 
