@@ -17,7 +17,7 @@ export class FragmentExample extends Newstack {
       <div class="py-8 px-2 border-t-2" id="fragment-example-component">
         <h2 class="font-bold">Fragment Example</h2>
 
-        <p>Elements below are rendered with {"<>...</>"} — no wrapper div.</p>
+        <p>Elements below are rendered with fragments — no wrapper div.</p>
 
         {this.visible ? (
           <>

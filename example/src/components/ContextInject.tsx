@@ -6,12 +6,20 @@ import Newstack, { type NewstackClientContext } from "@moureau/newstack";
  * The helper methods receive the full context without being passed explicitly.
  */
 export class ContextInject extends Newstack {
-  renderPath({ router }: NewstackClientContext) {
-    return <p>Current path: <strong>{router.path}</strong></p>;
+  renderPath({ router }: Partial<NewstackClientContext>) {
+    return (
+      <p>
+        Current path: <strong>{router.path}</strong>
+      </p>
+    );
   }
 
-  renderEnv({ environment }: NewstackClientContext) {
-    return <p>Environment: <strong>{environment}</strong></p>;
+  renderEnv({ environment }: Partial<NewstackClientContext>) {
+    return (
+      <p>
+        Environment: <strong>{environment}</strong>
+      </p>
+    );
   }
 
   render() {

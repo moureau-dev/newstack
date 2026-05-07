@@ -36,7 +36,11 @@ export class HtmlProp extends Newstack {
 
         <div class="border p-4 my-2 rounded" html={this.current} />
 
-        <button type="button" class="border px-3 py-1 mt-2" onclick={() => this.next()}>
+        <button
+          type="button"
+          class="border px-3 py-1 mt-2"
+          onclick={() => this.next()}
+        >
           Next snippet
         </button>
       </div>

@@ -11,6 +11,13 @@ import { List } from "./components/List";
 import { SayHelloAppender } from "./components/SayHelloAppender";
 import { HtmlProp } from "./components/HtmlProp";
 import { FragmentExample } from "./components/FragmentExample";
+import { ContextInject } from "./components/ContextInject";
+import { DynamicLink } from "./components/DynamicLink";
+import { HeadInject } from "./components/HeadInject";
+import { LocaleSelect } from "./components/LocaleSelect";
+import { Runtime } from "./components/Runtime";
+import { RefExample } from "./components/RefExample";
+import { InstanceExample } from "./components/InstanceExample";
 
 /**
  * @description
@@ -44,6 +51,13 @@ export class Home extends Newstack {
         <SayHelloAppender />
         <HtmlProp />
         <FragmentExample />
+        <ContextInject />
+        <DynamicLink />
+        <HeadInject />
+        <LocaleSelect />
+        <Runtime />
+        <RefExample />
+        <InstanceExample />
 
         <footer class="flex gap-4 items-center">
           <a href="/about">About</a>

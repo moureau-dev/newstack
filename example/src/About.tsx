@@ -46,7 +46,11 @@ export class About extends ServerFunctions {
           Server message: <pre>{this.msg || "..."}</pre>
         </div>
 
-        <button type="button" onclick={() => this.callServerFunction()}>
+        <button
+          class="border px-3 py-1 mt-2"
+          type="button"
+          onclick={() => this.callServerFunction()}
+        >
           Call server function
         </button>
 
