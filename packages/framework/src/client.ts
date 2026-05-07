@@ -97,7 +97,8 @@ export class NewstackClient {
       instances: new Proxy({} as Record<string, any>, {
         get: (t, k) => (k in t ? t[k as string] : {}),
       }),
-      settings: __NEWSTACK_SETTINGS__ ?? {},
+      settings:
+        typeof __NEWSTACK_SETTINGS__ !== "undefined" ? __NEWSTACK_SETTINGS__ : {},
       fingerprint,
       worker: this.workerState,
     };
