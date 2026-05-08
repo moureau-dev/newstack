@@ -299,7 +299,8 @@ render(context) {
 
 - Components with a non-matching `route` render as `<!---->` (invisible).
 - Dynamic params are available via `context.params.id`.
-- `route="*"` is a catch-all.
+- `route="*"` is a fallback (404): it renders only when no sibling `route` matched the current path. Scope is the JSX-array level, like a `<Routes>` block — siblings of the `*` are the components it falls back from. To render unconditionally, omit the `route` prop entirely.
+- During SSG, the presence of a `route="*"` element causes the build to additionally emit `404.html` and `404/index.html` so static hosts (Netlify, Cloudflare Pages, GitHub Pages, S3, etc.) can serve it on unmatched URLs.
 - Client navigation is handled automatically — all `<a>` tags are intercepted via a delegated listener, including ones added dynamically after hydration.
 - Links with `target="_blank"`, external URLs, `#hash`, `mailto:`, and `tel:` are not intercepted and behave normally.
 

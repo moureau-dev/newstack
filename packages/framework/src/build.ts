@@ -129,6 +129,36 @@ export class BuildManager {
       await this.writeHtmlFiles(dynamicPath, outDir, html);
     }
 
+    if (this.hasFallbackRoute(app)) {
+      // Render the fallback once with a path that no defined route can match
+      // (segment count exceeds every discovered route's), so `route="*"` is
+      // the only sibling that renders. Emit it as both `404.html` and
+      // `404/index.html` so static hosts that look for either layout (Netlify,
+      // Cloudflare Pages, GitHub Pages, S3) can serve it on unmatched URLs.
+      const maxSegments = discoveredRoutes.reduce(
+        (max, r) => Math.max(max, r.split("/").filter(Boolean).length),
+        0,
+      );
+      const notFoundPath =
+        "/" +
+        Array(maxSegments + 1)
+          .fill("__newstack_404__")
+          .join("/");
+
+      console.log("Rendering 404 fallback");
+      context.path = notFoundPath;
+      context.router.path = notFoundPath;
+
+      const html = shouldHydrate
+        ? await this.deps.template()
+        : await this.deps.templateStatic();
+
+      await writeFile(join(outDir, "404.html"), html, "utf-8");
+      await mkdir(join(outDir, "404"), { recursive: true });
+      await writeFile(join(outDir, "404", "index.html"), html, "utf-8");
+      visitedPaths.add("/404");
+    }
+
     if (shouldHydrate) await this.copyClientFiles(outDir);
     await this.copyPublicDirectory(outDir);
     await this.writeManifest(outDir);
@@ -244,6 +274,40 @@ export class BuildManager {
 
     traverse(app.render(this.deps.context as NewstackClientContext));
     return routes;
+  }
+
+  /**
+   * Whether the app's vnode tree contains any `route="*"` fallback element.
+   * Used to decide whether SSG should additionally emit a 404 page.
+   */
+  hasFallbackRoute(app: Newstack): boolean {
+    let found = false;
+
+    const traverse = (vnode: any) => {
+      if (found || !vnode) return;
+      if (Array.isArray(vnode)) {
+        vnode.forEach(traverse);
+        return;
+      }
+      if (typeof vnode !== "object") return;
+      const { type, props } = vnode;
+      if (props?.route === "*") {
+        found = true;
+        return;
+      }
+      if (typeof type === "function" && !type.hash) {
+        traverse(type(props ?? {}));
+        return;
+      }
+      if (Array.isArray(props?.children)) {
+        for (const child of props.children) traverse(child);
+      } else if (props?.children) {
+        traverse(props.children);
+      }
+    };
+
+    traverse(app.render(this.deps.context as NewstackClientContext));
+    return found;
   }
 
   private extractLinks(html: string): string[] {

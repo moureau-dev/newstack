@@ -6,6 +6,7 @@ import "./styles.css";
 import { Home } from "./Home";
 import { About } from "./About";
 import { Profile } from "./Profile";
+import { NotFound } from "./NotFound";
 
 /* ---------- Components ---------- */
 import { Layout } from "./components/Layout";
@@ -39,6 +40,7 @@ export class Application extends Newstack {
         <Home route="/" />
         <About route="/about" />
         <Profile route="/profile/:id" />
+        <NotFound route="*" />
       </Layout>
     );
   }

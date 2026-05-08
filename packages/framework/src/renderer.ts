@@ -45,6 +45,13 @@ export class Renderer {
   private isUpdating = false;
 
   /**
+   * Stack of "did any non-`*` sibling route match the current path?" booleans,
+   * pushed by renderChildren() before walking each array of children and popped
+   * after. Used by the `route="*"` fallback check inside html().
+   */
+  private fallbackStack: boolean[] = [];
+
+  /**
    * Accumulated <head> children collected during the current html() pass.
    * Each entry is tagged with the hash of the component that produced it so
    * scoped cleanup works when a single component re-renders.
@@ -167,8 +174,7 @@ export class Renderer {
    * @returns A string representing the rendered HTML.
    */
   html(node: VNode): string {
-    if (Array.isArray(node))
-      return (node as VNode[]).map((c) => this.html(c)).join("");
+    if (Array.isArray(node)) return this.renderChildren(node as VNode[]);
     if (typeof node === "string" || typeof node === "number")
       return String(node);
     if (node === null || typeof node !== "object") return "";
@@ -190,12 +196,17 @@ export class Renderer {
       return "";
     }
 
-    // Skip rendering if the route does not match
+    // Skip rendering if the route does not match.
+    // `route="*"` is a fallback: render only when no sibling route matched.
+    // The sibling check is set up by renderChildren() before walking each
+    // children array; an empty stack means no siblings, so `*` renders.
     if (props?.route) {
-      const matchAll = props.route === "*";
-      const matchPath = matchRoute(props.route, this.context);
-
-      if (!matchAll && !matchPath) {
+      if (props.route === "*") {
+        const siblingMatched =
+          this.fallbackStack.length > 0 &&
+          this.fallbackStack[this.fallbackStack.length - 1];
+        if (siblingMatched) return "<!---->";
+      } else if (!matchRoute(props.route, this.context)) {
         // Skip with an HTML comment for context router.path changing
         return "<!---->";
       }
@@ -270,7 +281,7 @@ export class Renderer {
     }
 
     const children = Array.isArray(props?.children)
-      ? props.children.map((c) => this.html(c)).join("")
+      ? this.renderChildren(props.children)
       : this.html(props?.children);
 
     const attrs = Object.entries(props || {})
@@ -308,6 +319,35 @@ export class Renderer {
     const innerContent = props?.html != null ? String(props.html) : children;
 
     return `<${type}${attrs}${bindAttr}>${innerContent}</${type}>`;
+  }
+
+  /**
+   * Walks an array of sibling vnodes, joining their html.
+   *
+   * Pre-scans for any non-`*` `route` prop that matches the current path so
+   * that `route="*"` siblings know whether to render as the fallback. The
+   * pre-scan is shallow (immediate siblings only) — `*` is scoped to its
+   * JSX-array level, mirroring how routers like react-router treat catch-all
+   * routes inside a `<Routes>` block.
+   */
+  private renderChildren(children: VNode[]): string {
+    let siblingMatched = false;
+    for (const child of children) {
+      if (!child || typeof child !== "object" || Array.isArray(child)) continue;
+      const route = (child as VNode).props?.route;
+      if (!route || route === "*") continue;
+      if (routeMatches(route, this.context)) {
+        siblingMatched = true;
+        break;
+      }
+    }
+
+    this.fallbackStack.push(siblingMatched);
+    try {
+      return children.map((c) => this.html(c)).join("");
+    } finally {
+      this.fallbackStack.pop();
+    }
   }
 
   /**
@@ -978,7 +1018,12 @@ function applyRef(ref: unknown, value: unknown): void {
   }
 }
 
-function matchRoute(
+/**
+ * Pure check: does `routePattern` match the current `context.router.path`?
+ * No side effects — safe to call during sibling pre-scans without polluting
+ * `context.params` for routes that won't actually render.
+ */
+function routeMatches(
   routePattern: string,
   context: NewstackClientContext,
 ): boolean {
@@ -989,14 +1034,21 @@ function matchRoute(
 
   for (let i = 0; i < routeSegments.length; i++) {
     const routeSegment = routeSegments[i];
-    const pathSegment = pathSegments[i];
-
-    if (routeSegment.startsWith(":")) {
-      continue; // param match
-    }
-    if (routeSegment !== pathSegment) return false;
+    if (routeSegment.startsWith(":")) continue; // param match
+    if (routeSegment !== pathSegments[i]) return false;
   }
 
+  return true;
+}
+
+function matchRoute(
+  routePattern: string,
+  context: NewstackClientContext,
+): boolean {
+  if (!routeMatches(routePattern, context)) return false;
+
+  const routeSegments = routePattern?.split("/").filter(Boolean) ?? [];
+  const pathSegments = context.router.path?.split("/").filter(Boolean) ?? [];
   routeSegments.forEach((segment, index) => {
     if (!segment.startsWith(":")) return;
     const paramName = segment.slice(1);

@@ -63,6 +63,7 @@ export class Home extends Newstack {
         <footer class="flex gap-4 items-center">
           <a href="/about">About</a>
           <a href="/profile/123">Profile 123</a>
+          <a href="/does-not-exist">Trigger 404</a>
 
           <button
             type="button"
