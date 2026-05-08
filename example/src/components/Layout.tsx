@@ -1,4 +1,4 @@
-import type NewstackNode from "@moureau/newstack";
+import type { NewstackNode } from "@moureau/newstack";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 
