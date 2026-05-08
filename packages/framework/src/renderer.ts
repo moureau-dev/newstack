@@ -9,6 +9,26 @@ type VNode = {
   };
 };
 
+/**
+ * HTML tags that have no end tag per the HTML spec.
+ */
+const VOID_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
 export class Renderer {
   /**
    * @description
@@ -314,6 +334,15 @@ export class Renderer {
       } else {
         bindAttr = ` value="${value ?? ""}"`;
       }
+    }
+
+    /**
+     * Emitting `</br>` (or any `</void>`) makes browsers re-open the tag, so e.g.
+     * `<br></br>` parses as two `<br>` siblings. We render these without a closing
+     * tag instead.
+     */
+    if (typeof type === "string" && VOID_ELEMENTS.has(type)) {
+      return `<${type}${attrs}${bindAttr}>`;
     }
 
     const innerContent = props?.html != null ? String(props.html) : children;
