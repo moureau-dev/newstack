@@ -10,6 +10,20 @@ type VNode = {
 };
 
 /**
+ * Lifecycle methods whose first argument is the framework context. The
+ * proxy captures it into target.__ctx so subsequent method calls can have
+ * router/params/instances/etc. auto-injected.
+ */
+const CTX_LIFECYCLE_METHODS = [
+  "render",
+  "prepare",
+  "hydrate",
+  "update",
+  "destroy",
+  "terminate",
+];
+
+/**
  * HTML tags that have no end tag per the HTML spec.
  */
 const VOID_ELEMENTS = new Set([
@@ -762,23 +776,22 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
     get(target, key) {
       const val = Reflect.get(target, key);
 
-      // Intercept render() to stash the context in target.__ctx before every
-      // call. Event handlers produced by MethodBindTransform read this.__ctx
-      // so they receive the current context regardless of how the render
-      // parameter is named (or whether it's declared at all).
-      if (key === "render" && typeof val === "function") {
+      // Stash context from any lifecycle hook that receives it, so the
+      // auto-inject branch below works for logic-only components too.
+      if (
+        typeof key === "string" &&
+        CTX_LIFECYCLE_METHODS.includes(key) &&
+        typeof val === "function"
+      ) {
         return (...args: unknown[]) => {
-          (target as any).__ctx = args[0];
+          const first = args[0];
+          if (first && typeof first === "object" && !Array.isArray(first)) {
+            (target as any).__ctx = first;
+          }
           return (val as (...a: unknown[]) => unknown).apply(proxy, args);
         };
       }
 
-      // Auto-inject context into sub-render helpers that explicitly receive a
-      // plain object as their first argument (e.g. this.renderIntro({})).
-      // Only activates when the caller passes a plain object — never touches
-      // zero-arg calls or calls with non-object args (numbers, strings, etc).
-      // Excludes constructor and any method that carries static properties
-      // (like .hash) so they are returned as-is.
       if (
         typeof val === "function" &&
         typeof key === "string" &&
