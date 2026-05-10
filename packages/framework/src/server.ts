@@ -472,7 +472,7 @@ export class NewstackServer {
 
     if (process.env.NEWSTACK_SPA === "true") {
       this.buildManager
-        .buildSpa(opts)
+        .buildSpa(app, opts)
         .then(() => process.exit(0))
         .catch((err) => {
           console.error(err);

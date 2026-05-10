@@ -169,12 +169,22 @@ export class BuildManager {
     console.log("Pages:", Array.from(visitedPaths));
   }
 
-  async buildSpa(opts?: {
+  async buildSpa(app: Newstack, opts?: {
     outDir?: string;
     deps?: Record<string, unknown>;
   }): Promise<void> {
-    const { distDir, fingerprint } = this.deps;
+    const { distDir, fingerprint, context, renderer } = this.deps;
     const outDir = opts?.outDir || "dist/spa";
+
+    context.deps = opts?.deps ?? {};
+    renderer.setupAllComponents(app);
+
+    // Run prepare() so context.project is populated before manifest generation.
+    await app.prepare?.(context);
+    for (const [hash, { component }] of renderer.components) {
+      if (!renderer.visibleHashes.has(hash)) continue;
+      await component.prepare?.(context);
+    }
 
     await mkdir(outDir, { recursive: true });
     await this.copyClientFiles(outDir);
@@ -426,6 +436,7 @@ function install(event) {
   const urls = [
     \`/client.js?fingerprint=\${self.context.fingerprint}\`,
     \`/client.css?fingerprint=\${self.context.fingerprint}\`,
+    ...(self.context.mode === "spa" ? ["/"] : []),
     ...(self.context.mode === "ssg" ? ["/", ...self.context.worker.preload.map(withAPI)] : []),
   ].flat().filter(Boolean);
   event.waitUntil(async function () {
@@ -464,6 +475,7 @@ function staticStrategy(event) {
       return event.respondWith(cacheFirst(event));
     }
     if (url.pathname.indexOf(".") > -1) return event.respondWith(staleWhileRevalidate(event));
+    if (self.context.mode === "spa") return event.respondWith(cacheFirst(event));
     if (self.context.mode === "ssr" || url.pathname === "/") return event.respondWith(networkFirst(event));
     event.respondWith(networkDataFirst(event));
   }());
