@@ -196,12 +196,9 @@ export class BuildManager {
       : "";
 
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${context.page?.locale || "en"}">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="module" src="/client.js?fingerprint=${fingerprint}"></script>
-    ${cssLink}
+    ${this.headHtml(`<script type="module" src="/client.js?fingerprint=${fingerprint}"></script>${cssLink ? `\n    ${cssLink}` : ""}`)}
   </head>
   <body>
     <div id="app"></div>
