@@ -1,6 +1,6 @@
 {
   "name": "@moureau/newstack",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "license": "MIT",
   "type": "module",
   "files": ["dist", "bin"],

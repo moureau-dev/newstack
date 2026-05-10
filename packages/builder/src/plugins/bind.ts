@@ -1,12 +1,12 @@
 /**
- * Rewrites bind={this.prop} to bind={{ object: this, property: 'prop' }}
- * and bind={this.nested.prop} to bind={{ object: this.nested, property: 'prop' }}
+ * Rewrites bind={expr.prop} to bind={{ object: expr, property: 'prop' }}
+ * where expr is any dot-separated identifier path (e.g. this.foo, logic, instances.logic).
  * before esbuild processes the JSX, so the renderer receives both the
  * target object and the property name at runtime.
  */
 export function BindTransform(code: string): string {
   return code.replace(
-    /bind=\{\s*(this(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)+)\s*\}/g,
+    /bind=\{\s*([a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)+)\s*\}/g,
     (_, path) => {
       const lastDot = path.lastIndexOf(".");
       const object = path.slice(0, lastDot);
