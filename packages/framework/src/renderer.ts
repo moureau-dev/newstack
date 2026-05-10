@@ -444,7 +444,7 @@ export class Renderer {
     if (newEl && oldEl) {
       patchElement(oldEl, newEl, newVNode, () => {
         this.context.event = undefined;
-      });
+      }, this.context as unknown as Record<string, unknown>);
     }
 
     this.head.flush();
@@ -522,7 +522,7 @@ export class Renderer {
       this.context.event = event;
       this.updateComponent(component);
       this.context.event = undefined;
-    });
+    }, (component as any).__ctx ?? this.context as unknown as Record<string, unknown>);
 
     this.head.flush(staticComponent.hash);
   }
@@ -903,6 +903,7 @@ function patchElement(
   newEl: Element,
   vnode?: VNode,
   update: (e: Event) => void = () => {},
+  ctx?: Record<string, unknown>,
 ) {
   // Update attributes
   const oldAttrs = oldEl.attributes;
@@ -945,7 +946,7 @@ function patchElement(
       if (key.startsWith("on") && typeof val === "function") {
         oldEl[key] = (e: Event) => {
           e.preventDefault();
-          val(e);
+          ctx && !(val as any).__ns_wrapped ? val({ ...ctx, event: e }, e) : val(e);
           if (update) update(e);
         };
       }
@@ -999,7 +1000,7 @@ function patchElement(
       const inserted = newChild.cloneNode(true);
       oldEl.appendChild(inserted);
       if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
-        patchElement(inserted as Element, inserted as Element, vchild, update);
+        patchElement(inserted as Element, inserted as Element, vchild, update, ctx);
       }
       continue;
     }
@@ -1013,7 +1014,7 @@ function patchElement(
       const inserted = newChild.cloneNode(true);
       oldEl.replaceChild(inserted, oldChild);
       if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
-        patchElement(inserted as Element, inserted as Element, vchild, update);
+        patchElement(inserted as Element, inserted as Element, vchild, update, ctx);
       }
       continue;
     }
@@ -1033,12 +1034,12 @@ function patchElement(
       newChild.nodeType === Node.ELEMENT_NODE &&
       (oldChild as Element).tagName === (newChild as Element).tagName
     ) {
-      patchElement(oldChild as Element, newChild as Element, vchild, update);
+      patchElement(oldChild as Element, newChild as Element, vchild, update, ctx);
     } else {
       const inserted = newChild.cloneNode(true);
       oldEl.replaceChild(inserted, oldChild);
       if (vchild && inserted.nodeType === Node.ELEMENT_NODE) {
-        patchElement(inserted as Element, inserted as Element, vchild, update);
+        patchElement(inserted as Element, inserted as Element, vchild, update, ctx);
       }
     }
   }

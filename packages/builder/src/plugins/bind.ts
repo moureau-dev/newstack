@@ -48,6 +48,6 @@ export function RefTransform(code: string): string {
 export function MethodBindTransform(code: string): string {
   return code.replace(
     /(on[a-zA-Z]+)=\{\s*this\.([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\}/g,
-    "$1={(e) => this.$2({ ...this.__ctx, event: e }, e)}",
+    "$1={Object.assign((e) => this.$2({ ...this.__ctx, event: e }, e), { __ns_wrapped: true })}",
   );
 }
