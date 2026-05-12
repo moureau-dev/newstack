@@ -1,26 +1,77 @@
 /* ---------- External ---------- */
 import Newstack from "@moureau/newstack";
 
-/**
- * @description
- * This is the Home page of the Newstack example application.
- * It demonstrates a simple interactive component with a counter.
- */
 export class Home extends Newstack {
   /* ---------- Proxies ---------- */
   copied: boolean;
+  tailwind: boolean;
+  cmd: string = "bunx create-newstack-app my-app";
 
   /* ---------- Lifecycle ---------- */
   prepare({ page }) {
     page.title = "Newstack";
-    page.description = "Welcome to Newstack - a modern web framework for building fast and efficient applications.";
+    page.description =
+      "A modern web framework for building fast, reactive applications with zero runtime overhead.";
+  }
+
+  update() {
+    this.cmd = this.tailwind
+      ? "bunx create-newstack-app my-app --tailwind"
+      : "bunx create-newstack-app my-app";
+  }
+
+  /* ---------- Methods ---------- */
+  async copy() {
+    await navigator.clipboard.writeText(this.cmd);
+    this.copied = true;
+    setTimeout(() => (this.copied = false), 2000);
   }
 
   render() {
     return (
       <div class="home">
-        <h1>Welcome to Newstack!</h1>
-        <p>Get started by editing <code>src/Home.tsx</code></p>
+        <div class="home__content">
+          <div class="home__badge">Now in beta</div>
+          <h1 class="home__title">
+            Build fast.<br />Stay lean.
+          </h1>
+          <p class="home__subtitle">
+            A minimal web framework with proxy-based reactivity,
+            <br />zero virtual DOM, and SSG out of the box.
+          </p>
+
+          <div class="home__command-wrapper">
+            <div class="home__tabs">
+              <button
+                class={`home__tab${!this.tailwind ? " home__tab--active" : ""}`}
+                onclick={() => (this.tailwind = false)}
+              >
+                Default
+              </button>
+              <button
+                class={`home__tab${this.tailwind ? " home__tab--active" : ""}`}
+                onclick={() => (this.tailwind = true)}
+              >
+                + Tailwind
+              </button>
+            </div>
+            <div class="home__command">
+              <code class="home__code">{this.cmd}</code>
+              <button class="home__copy" onclick={this.copy}>
+                {this.copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <a
+            class="home__llms"
+            href="/llms.txt"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            llms.txt →
+          </a>
+        </div>
       </div>
     );
   }
