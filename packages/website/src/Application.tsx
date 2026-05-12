@@ -31,9 +31,9 @@ export class Application extends Newstack {
 
   render() {
     return (
-      <div>
+      <main>
         <Home route="/" />
-      </div>
+      </main>
     );
   }
 }
