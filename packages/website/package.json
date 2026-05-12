@@ -5,9 +5,14 @@
   "scripts": {
     "start": "newstack start",
     "build": "newstack build --mode=ssg",
-    "postbuild": "cp ../create-newstack-app/src/newstack.md ./dist/ssg/llms.txt"
+    "postbuild": "cp ../create-newstack-app/src/newstack.md ./dist/ssg/llms.txt",
+    "predeploy": "bun run build",
+    "deploy": "bun run deploy.ts"
   },
   "dependencies": {
     "@moureau/newstack": "workspace:*"
+  },
+  "devDependencies": {
+    "@moureau/basebox": "^0.0.31"
   }
 }
