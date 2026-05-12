@@ -31,13 +31,13 @@ export class Home extends Newstack {
     return (
       <div class="home">
         <div class="home__content">
-          <div class="home__badge">Now in beta</div>
+          <div class="home__badge">Newstack</div>
           <h1 class="home__title">
             Build fast.<br />Stay lean.
           </h1>
           <p class="home__subtitle">
-            A minimal web framework with proxy-based reactivity,
-            <br />zero virtual DOM, and SSG out of the box.
+            A minimal <a href="https://nullstack.app" target="_blank">Nullstackative</a> web framework with proxy-based reactivity,
+            <br />zero virtual DOM, and SSR/SSG/SPA build modes out of the box.
           </p>
 
           <div class="home__command-wrapper">
