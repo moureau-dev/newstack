@@ -1,11 +1,30 @@
 /* ---------- External ---------- */
-import Newstack from "@moureau/newstack";
+import Newstack, { NewstackClientContext } from "@moureau/newstack";
+
+const LLMS_URL = "https://newstack.moureau.dev/llms.txt";
+
+const AI_OPTIONS = [
+  { label: "Copy llms.txt URL", action: "copy" },
+  {
+    label: "Open in ChatGPT",
+    href: `https://chatgpt.com/?q=${encodeURIComponent(`Read ${LLMS_URL} and help me build with Newstack`)}`,
+  },
+  {
+    label: "Open in Claude",
+    href: `https://claude.ai/new?q=${encodeURIComponent(`Read ${LLMS_URL} and help me build with Newstack`)}`,
+  },
+];
 
 export class Home extends Newstack {
   /* ---------- Proxies ---------- */
   copied: boolean;
   tailwind: boolean;
   cmd: string = "bunx create-newstack-app my-app";
+  llmsOpen: boolean;
+  llmsCopied: boolean;
+
+  /* ---------- Refs ---------- */
+  menuWrapper: HTMLDivElement;
 
   /* ---------- Lifecycle ---------- */
   prepare({ page }) {
@@ -27,11 +46,26 @@ export class Home extends Newstack {
     setTimeout(() => (this.copied = false), 2000);
   }
 
+  toggleLlmsMenu() {
+    this.llmsOpen = !this.llmsOpen;
+  }
+
+  closeLlmsMenu({ event }: NewstackClientContext) {
+    if (this.menuWrapper?.contains(event.target as Node)) return;
+    this.llmsOpen = false;
+  }
+
+  async copyLlmsUrl() {
+    await navigator.clipboard.writeText(LLMS_URL);
+    this.llmsCopied = true;
+    this.llmsOpen = false;
+    setTimeout(() => (this.llmsCopied = false), 2000);
+  }
+
   render() {
     return (
-      <div class="home">
+      <div class="home" onclick={this.closeLlmsMenu}>
         <div class="home__content">
-          <div class="home__badge">Newstack</div>
           <h1 class="home__title">
             Build fast.<br />Stay lean.
           </h1>
@@ -63,14 +97,44 @@ export class Home extends Newstack {
             </div>
           </div>
 
-          <a
-            class="home__llms"
-            href="/llms.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            llms.txt →
-          </a>
+          <div class="home__llms-row">
+            <a
+              class="home__llms"
+              href="/llms.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              llms.txt
+            </a>
+            <div class="home__llms-menu-wrapper" ref={this.menuWrapper}>
+              <button
+                class={`home__llms-trigger${this.llmsOpen ? " home__llms-trigger--open" : ""}`}
+                onclick={this.toggleLlmsMenu}
+              >
+                {this.llmsCopied ? "Copied!" : "Use with AI ↓"}
+              </button>
+              {this.llmsOpen && (
+                <div class="home__llms-dropdown">
+                  {AI_OPTIONS.map((opt) =>
+                    opt.action ? (
+                      <button class="home__llms-option" onclick={this.copyLlmsUrl}>
+                        {opt.label}
+                      </button>
+                    ) : (
+                      <a
+                        class="home__llms-option"
+                        href={opt.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {opt.label}
+                      </a>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
