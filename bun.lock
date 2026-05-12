@@ -32,7 +32,7 @@
     },
     "packages/create-newstack-app": {
       "name": "create-newstack-app",
-      "version": "0.0.23",
+      "version": "0.0.28",
       "bin": {
         "create-newstack-app": "./dist/index.js",
       },
@@ -59,7 +59,7 @@
     },
     "packages/newstack": {
       "name": "@moureau/newstack",
-      "version": "0.0.3",
+      "version": "0.0.76",
       "bin": {
         "newstack": "./bin/newstack.js",
       },
@@ -75,6 +75,13 @@
         "concurrently": "^9",
         "dts-bundle-generator": "^9",
         "typescript": "^5",
+      },
+    },
+    "packages/website": {
+      "name": "website",
+      "version": "0.0.1",
+      "dependencies": {
+        "@moureau/newstack": "workspace:*",
       },
     },
   },
@@ -394,6 +401,8 @@
     "update-browserslist-db": ["update-browserslist-db@1.2.3", "", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.1" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": { "update-browserslist-db": "cli.js" } }, "sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w=="],
 
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
+
+    "website": ["website@workspace:packages/website"],
 
     "wrap-ansi": ["wrap-ansi@7.0.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="],
 
