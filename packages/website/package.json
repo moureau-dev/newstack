@@ -13,6 +13,7 @@
     "@moureau/newstack": "workspace:*"
   },
   "devDependencies": {
-    "@moureau/basebox": "^0.0.31"
+    "@moureau/basebox": "^0.0.31",
+    "@types/node": "^25.7.0"
   }
 }

@@ -51,6 +51,7 @@ export class Home extends Newstack {
   llmsOpen: boolean = false;
   llmsCopied: boolean;
   llmsLoading: boolean;
+  home: HTMLDivElement;
 
   /* ---------- Refs ---------- */
   menuWrapper: HTMLDivElement;
@@ -60,6 +61,12 @@ export class Home extends Newstack {
     page.title = "Newstack";
     page.description =
       "A modern web framework for building fast, reactive applications with zero runtime overhead.";
+  }
+
+  hydrate() {
+    document.addEventListener('click', (event) => {
+      this.closeLlmsMenu({ event })
+    });
   }
 
   update() {
@@ -79,7 +86,7 @@ export class Home extends Newstack {
     this.llmsOpen = !this.llmsOpen;
   }
 
-  closeLlmsMenu({ event }: NewstackClientContext) {
+  closeLlmsMenu({ event }: Partial<NewstackClientContext>) {
     if (this.menuWrapper?.contains(event.target as Node)) return;
     this.llmsOpen = false;
   }
@@ -130,10 +137,7 @@ export class Home extends Newstack {
   render() {
     return (
       <>
-        <head>
-          <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css" />
-          </head>
-        <div class="home" onclick={this.closeLlmsMenu}>
+        <div class="home" ref={this.home}>
           <div class="home__content">
             <h1 class="home__title">
               Build fast.<br />Stay lean.

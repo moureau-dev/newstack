@@ -1,9 +1,7 @@
-const {
-  BASEBOX_ANON_KEY,
-  BASEBOX_SECRET_KEY,
-} = import.meta.env;
 
 import { Basebox } from "@moureau/basebox";
+
+const { BASEBOX_ANON_KEY, BASEBOX_SECRET_KEY } = process.env;
 
 const dist = "./dist/ssg";
 const domain = "newstack.moureau.dev";
@@ -20,13 +18,4 @@ if (success) {
   console.log(`Deployed successfully at https://${domain}`);
 } else {
   console.log("Failed to deploy.")
-}
-
-
-
-interface ImportMeta {
-  env: {
-    BASEBOX_ANON_KEY: string;
-    BASEBOX_SECRET_KEY: string;
-  }
 }
