@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "newstack start",
-    "build": "newstack build"
+    "build": "newstack build --mode=ssg",
+    "postbuild": "cp ../create-newstack-app/src/newstack.md ./dist/ssg/llms.txt"
   },
   "dependencies": {
     "@moureau/newstack": "workspace:*"
