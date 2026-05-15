@@ -12,6 +12,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body > div#app > main {
+  display: flex;
+  flex-flow: column;
+  min-height: 100svh;
+}
+
 a {
   text-decoration: none;
 }
@@ -20,7 +26,9 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: 100%;
+  flex: 1;
+
   padding: 2rem;
 }
 

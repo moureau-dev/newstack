@@ -87,15 +87,13 @@ async function loadConfig() {
 async function buildOnce() {
   const config = await loadConfig();
 
-  console.time("Time taken");
-  console.log("Building server and client...");
+  console.time("Build time");
   await Promise.all([
     esbuildBuild(config.server),
     esbuildBuild(config.client),
   ]);
 
-  console.log("Build completed successfully!");
-  console.timeEnd("Time taken");
+  console.timeEnd("Build time");
 }
 
 async function runBuild(mode) {
