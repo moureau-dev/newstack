@@ -279,3 +279,14 @@ a {
   background: rgba(255, 255, 255, 0.05);
   color: #e8e6e8;
 }
+
+.home__footer {
+  text-align: center;
+  padding: 1rem 2rem;
+  color: #6b636b;
+  font-size: 0.8rem;
+}
+
+.home__footer a {
+  color: #fc51a6;
+}
