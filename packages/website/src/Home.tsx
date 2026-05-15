@@ -200,6 +200,12 @@ export class Home extends Newstack {
             </div>
           </div>
         </div>
+        <footer class="home__footer">
+          Feito com ❤️ por{' '}
+          <a href="https://moureau.dev" target="_blank" rel="noopener noreferrer">
+            moureau.dev
+          </a>
+        </footer>
       </>
     );
   }
