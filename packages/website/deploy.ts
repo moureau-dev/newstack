@@ -1,4 +1,3 @@
-
 import { Basebox } from "@moureau/basebox";
 
 const { BASEBOX_ANON_KEY, BASEBOX_SECRET_KEY } = process.env;
@@ -12,6 +11,7 @@ const bb = new Basebox({ publicKey });
 
 const main = async () => {
     console.time("Deployment time");
+
     const { success } = await bb
       .managed({ apiKey })
       .deploy({ dist, domain });

@@ -84,7 +84,7 @@
         "@moureau/newstack": "workspace:*",
       },
       "devDependencies": {
-        "@moureau/basebox": "^0.0.31",
+        "@moureau/basebox": "^0.0.35",
         "@types/node": "^25.7.0",
       },
     },
@@ -174,7 +174,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@moureau/basebox": ["@moureau/basebox@0.0.31", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-yrgZIKysbOAQuxGiRucFe3+wL0SOfGvLBC911IPyKnMj71T5bFp2tMIgGOYZDCAABvHd3FiycIVdsPW0hLr3mw=="],
+    "@moureau/basebox": ["@moureau/basebox@0.0.35", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-Z26UfJcLYnJNhidLnUYe78L5V0Qhj//r/ArSrxo2uJTf7jK/yI8Tyjbdjf+3FfsgWyMvq5waHnWjqniXXpnyuA=="],
 
     "@moureau/newstack": ["@moureau/newstack@workspace:packages/newstack"],
 
