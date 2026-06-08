@@ -43,6 +43,35 @@ const VOID_ELEMENTS = new Set([
   "wbr",
 ]);
 
+/**
+ * Framework-control props that drive routing/binding/refs/identity. These are
+ * handled by the renderer itself and must not leak into a component's context
+ * as user props. Everything else (including `children`) is passed through.
+ */
+const RESERVED_COMPONENT_PROPS = new Set([
+  "route",
+  "key",
+  "persistent",
+  "ref",
+  "bind",
+  "html",
+]);
+
+/**
+ * Picks the user-facing props off a JSX node, stripping the reserved
+ * framework-control props so they can be merged into a component's context.
+ */
+function extractComponentProps(
+  props?: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!props) return {};
+  const out: Record<string, unknown> = {};
+  for (const key in props) {
+    if (!RESERVED_COMPONENT_PROPS.has(key)) out[key] = props[key];
+  }
+  return out;
+}
+
 export class Renderer {
   /**
    * @description
@@ -288,6 +317,11 @@ export class Renderer {
         applyRef(props.ref, component);
       }
 
+      // Drop the JSX props onto the instance so the lifecycle wrapper in
+      // proxify() can merge them into the context. Set via the proxy is safe
+      // because the set-trap skips re-render triggers for __-prefixed keys.
+      (component as any).__props = extractComponentProps(props);
+
       const isRenderable = isRenderableComponent(component);
 
       if (isRenderable) {
@@ -449,6 +483,31 @@ export class Renderer {
 
     this.head.flush();
     this.lastVNode = newVNode;
+  }
+
+  /**
+   * Walks the rendered vnode tree and drops each component's JSX props onto
+   * its live instance. Used before lifecycle loops that run outside of an
+   * html() pass (e.g. prepare() on client soft-navigation) so those methods
+   * still see up-to-date props in their context. Within html() props are
+   * captured inline, so this is only needed for the no-html-walk paths.
+   */
+  assignProps(vnode: VNode) {
+    const loop = (node: any) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach(loop);
+        return;
+      }
+      const { type, props } = node;
+      if (isComponentNode(node)) {
+        const { hash } = type as unknown as { hash: string };
+        const entry = this.components.get(hash);
+        if (entry) (entry.component as any).__props = extractComponentProps(props);
+      }
+      if (props?.children) loop(props.children);
+    };
+    loop(vnode);
   }
 
   extractParams(vnode: any) {
@@ -786,7 +845,13 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
         return (...args: unknown[]) => {
           const first = args[0];
           if (first && typeof first === "object" && !Array.isArray(first)) {
-            (target as any).__ctx = first;
+            // Drop the component's JSX props into the context so every
+            // lifecycle method (render/prepare/hydrate/update/...) receives
+            // them. Props win over context keys, matching JSX semantics.
+            const props = (target as any).__props;
+            const merged = props ? { ...first, ...props } : first;
+            (target as any).__ctx = merged;
+            args[0] = merged;
           }
           return (val as (...a: unknown[]) => unknown).apply(proxy, args);
         };
@@ -821,6 +886,11 @@ function proxify(component: Newstack, renderer: Renderer): Newstack {
     },
     set(target, key, value) {
       target[key] = value;
+
+      // Internal framework bookkeeping (__props, __ctx, __node, …) is not
+      // reactive state and must never trigger a re-render. Writing __props
+      // from within html()'s render walk would otherwise loop forever.
+      if (typeof key === "string" && key.startsWith("__")) return true;
 
       if ((target as any).__hydrating || (target as any).__preparing)
         return true;

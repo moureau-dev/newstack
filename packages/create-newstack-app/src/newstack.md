@@ -263,6 +263,10 @@ context.event             // DOM Event — set when called from an event handler
 // Server only
 context.path              // request path
 context.secrets           // server-only secrets from env
+
+// Custom props passed from parent components
+context.<propName>        // props passed to THIS component as JSX attributes
+                          // (see "Props on class components" below)
 ```
 
 Project metadata is set via env vars prefixed with `NEWSTACK_PROJECT_`:
@@ -558,6 +562,39 @@ export class Page extends Newstack {
 ```
 
 Caller-supplied keys override context values — `this.renderHeader({ router: customRouter })` still works.
+
+---
+
+## Props on Class Components
+
+Attributes you pass to a class component are merged into that component's **`context`** — NOT onto `this`. Read them as `context.<propName>` inside `render(context)` and any sub-render helper. (`this.<name>` is reactive *state* declared as a class field; it is never set by a JSX attribute.)
+
+```tsx
+// Parent: pass data as attributes
+render(context) {
+  return (
+    <div class="cards">
+      <CubeCard title="2x2" desc="The starter cube." color="#f59e0b" />
+      <CubeCard title="3x3" desc="The classic." color="#ef4444" />
+    </div>
+  );
+}
+```
+
+```tsx
+// Child: read props from context
+export class CubeCard extends Newstack {
+  render(context) {
+    const { title, desc, color } = context;
+    return (
+      <div class="card" style={`border-color: ${color}`}>
+        <h2>{title}</h2>
+        <p>{desc}</p>
+      </div>
+    );
+  }
+}
+```
 
 ---
 

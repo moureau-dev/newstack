@@ -324,6 +324,7 @@ export class NewstackClient {
     if (this.mounted) {
       const vnode = this.app.render(this.context);
       this.renderer.extractParams(vnode);
+      this.renderer.assignProps(vnode);
 
       const mountedComponents: Newstack[] = [];
       this.renderer.components.forEach(({ component }, hash) => {

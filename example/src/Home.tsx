@@ -18,6 +18,7 @@ import { LocaleSelect } from "./components/LocaleSelect";
 import { Runtime } from "./components/Runtime";
 import { RefExample } from "./components/RefExample";
 import { InstanceExample, InstanceMirror } from "./components/InstanceExample";
+import { PropDrop } from "./components/PropDrop";
 
 /**
  * @description
@@ -59,6 +60,7 @@ export class Home extends Newstack {
         <RefExample />
         <InstanceExample />
         <InstanceMirror />
+        <PropDrop />
 
         <footer class="flex gap-4 items-center">
           <a href="/about">About</a>
